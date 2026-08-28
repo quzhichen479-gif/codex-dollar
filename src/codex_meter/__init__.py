@@ -1,3 +1,3 @@
 """Codex Token Meter: local usage accounting with separate billing ledgers."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

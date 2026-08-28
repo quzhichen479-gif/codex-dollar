@@ -71,5 +71,9 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG_NAME: ${{ github.ref_name }}
-        run: gh release create "$TAG_NAME" release-assets/* --generate-notes --title "Codex Dollar $TAG_NAME"
+        run: |
+          gh release view "$TAG_NAME" >/dev/null 2>&1 || \
+            gh release create "$TAG_NAME" --generate-notes --title "Codex Dollar $TAG_NAME"
+          gh release upload "$TAG_NAME" release-assets/* --clobber
