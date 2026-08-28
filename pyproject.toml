@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codex-dollar"
+version = "0.1.0"
+description = "Local-first Codex usage app with separate official API and subscription ledgers"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Codex Token Meter contributors" }]
+dependencies = []
+
+[project.optional-dependencies]
+desktop = ["pywebview>=5.4,<7"]
+build = ["pyinstaller>=6.10,<7"]
+
+[project.scripts]
+codex-dollar = "codex_meter.cli:main"
+codex-meter = "codex_meter.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+codex_meter = ["data/*.json", "static/*.html", "static/*.css", "static/*.js"]

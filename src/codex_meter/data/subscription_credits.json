@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "table_kind": "subscription",
+  "unit_tokens": 1000000,
+  "retrieved_at": "2026-08-28",
+  "separation_policy": "Subscription credit rates and fixed membership fees are independent from API token-price history. Never inherit an API reduction into this table.",
+  "source_policy": {
+    "allowed_hosts": [
+      "developers.openai.com",
+      "platform.openai.com",
+      "learn.chatgpt.com"
+    ],
+    "forbidden_examples": ["sub2api"]
+  },
+  "sources": [
+    {
+      "label": "Official ChatGPT Work and Codex pricing",
+      "url": "https://learn.chatgpt.com/docs/pricing"
+    },
+    {
+      "label": "Official Codex speed and credit multipliers",
+      "url": "https://learn.chatgpt.com/docs/agent-configuration/speed"
+    }
+  ],
+  "aliases": {
+    "gpt-5.6": "gpt-5.6-sol"
+  },
+  "cache_write_policy": "The official Codex credit card has no separate cache-write column; cache-write tokens are conservatively classified as regular input credits.",
+  "fast_multipliers": {
+    "gpt-5.6-sol": 2.5,
+    "gpt-5.6-terra": 2.5,
+    "gpt-5.6-luna": 2.5,
+    "gpt-5.5": 2.5,
+    "gpt-5.4": 2.0,
+    "gpt-5.4-mini": 2.0
+  },
+  "models": {
+    "gpt-5.6-sol": {
+      "effective_from": "2026-07-09T00:00:00Z",
+      "credits": {"input": 100.0, "cached_input": 10.0, "output": 500.0}
+    },
+    "gpt-5.6-terra": {
+      "effective_from": "2026-07-09T00:00:00Z",
+      "credits": {"input": 50.0, "cached_input": 5.0, "output": 300.0}
+    },
+    "gpt-5.6-luna": {
+      "effective_from": "2026-07-09T00:00:00Z",
+      "credits": {"input": 5.0, "cached_input": 0.5, "output": 30.0}
+    },
+    "gpt-5.5": {
+      "effective_from": "2026-04-24T00:00:00Z",
+      "credits": {"input": 125.0, "cached_input": 12.5, "output": 750.0}
+    },
+    "gpt-5.4": {
+      "effective_from": "2026-03-05T00:00:00Z",
+      "credits": {"input": 62.5, "cached_input": 6.25, "output": 375.0}
+    },
+    "gpt-5.4-mini": {
+      "effective_from": "2026-03-17T00:00:00Z",
+      "credits": {"input": 18.75, "cached_input": 1.875, "output": 113.0}
+    }
+  },
+  "plans": {
+    "free": {
+      "label": "Free",
+      "monthly_usd": 0.0,
+      "billing_note": "Fixed plan; usage is governed by plan limits, not API token billing."
+    },
+    "go": {
+      "label": "Go",
+      "monthly_usd": 8.0,
+      "billing_note": "Fixed membership price; regional pricing and taxes may differ."
+    },
+    "plus": {
+      "label": "Plus",
+      "monthly_usd": 20.0,
+      "billing_note": "Fixed membership price; API price reductions do not reduce this fee."
+    },
+    "pro_5x": {
+      "label": "Pro 5x",
+      "monthly_usd": 100.0,
+      "billing_note": "Fixed membership price; API price reductions do not reduce this fee."
+    },
+    "pro_20x": {
+      "label": "Pro 20x",
+      "monthly_usd": 200.0,
+      "billing_note": "Fixed membership price; API price reductions do not reduce this fee."
+    },
+    "business_annual": {
+      "label": "Business (annual billing)",
+      "monthly_usd": 20.0,
+      "billing_note": "Per user per month, 2+ users, billed annually."
+    },
+    "business_monthly": {
+      "label": "Business (monthly billing)",
+      "monthly_usd": 25.0,
+      "billing_note": "Per user per month."
+    }
+  },
+  "detected_plan_hints": {
+    "free": {"plan": "free", "confidence": "official-name"},
+    "plus": {"plan": "plus", "confidence": "official-name"},
+    "go": {"plan": "go", "confidence": "official-name"},
+    "prolite": {"plan": "pro_5x", "confidence": "inferred-internal-label"},
+    "pro": {"plan": "pro_20x", "confidence": "inferred-internal-label"},
+    "business": {"plan": "business_monthly", "confidence": "billing-cycle-unknown"}
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "table_kind": "api",
+  "currency": "USD",
+  "unit_tokens": 1000000,
+  "retrieved_at": "2026-08-28",
+  "source_policy": {
+    "allowed_hosts": [
+      "developers.openai.com",
+      "platform.openai.com",
+      "learn.chatgpt.com"
+    ],
+    "forbidden_examples": ["sub2api"]
+  },
+  "sources": [
+    {
+      "label": "OpenAI API Pricing",
+      "url": "https://developers.openai.com/api/docs/pricing"
+    },
+    {
+      "label": "OpenAI API Changelog",
+      "url": "https://developers.openai.com/api/docs/changelog"
+    },
+    {
+      "label": "OpenAI model catalog",
+      "url": "https://developers.openai.com/api/docs/models"
+    }
+  ],
+  "rules": {
+    "long_context_threshold_input_tokens": 272000,
+    "long_context_input_multiplier": 2.0,
+    "long_context_output_multiplier": 1.5,
+    "service_tier_multipliers": {
+      "default": 1.0,
+      "standard": 1.0,
+      "priority": 2.0,
+      "fast": 2.0,
+      "batch": 0.5,
+      "flex": 0.5
+    }
+  },
+  "aliases": {
+    "gpt-5.6": "gpt-5.6-sol",
+    "daybreak-blue-latest": "gpt-5.6-sol",
+    "gpt-5-codex": "gpt-5",
+    "gpt-5.1-codex": "gpt-5.1",
+    "gpt-5.1-codex-max": "gpt-5.1"
+  },
+  "models": {
+    "gpt-5.6-sol": [
+      {
+        "effective_from": "2026-07-09T00:00:00Z",
+        "effective_to": "2026-08-21T00:00:00Z",
+        "rates": {
+          "input": 5.0,
+          "cached_input": 0.5,
+          "cache_write": 6.25,
+          "output": 30.0
+        },
+        "long_context_pricing": true,
+        "note": "GPT-5.6 Sol launch price; superseded by the 2026-08-21 API reduction."
+      },
+      {
+        "effective_from": "2026-08-21T00:00:00Z",
+        "rates": {
+          "input": 4.0,
+          "cached_input": 0.4,
+          "cache_write": 5.0,
+          "output": 20.0
+        },
+        "long_context_pricing": true,
+        "note": "Promotional API price announced 2026-08-21; official page says available at least through 2026-11-21."
+      }
+    ],
+    "gpt-5.6-terra": [
+      {
+        "effective_from": "2026-07-09T00:00:00Z",
+        "effective_to": "2026-07-30T00:00:00Z",
+        "rates": {
+          "input": 2.5,
+          "cached_input": 0.25,
+          "cache_write": 3.125,
+          "output": 15.0
+        },
+        "long_context_pricing": true,
+        "note": "GPT-5.6 Terra launch price; superseded by the 2026-07-30 API reduction."
+      },
+      {
+        "effective_from": "2026-07-30T00:00:00Z",
+        "rates": {
+          "input": 2.0,
+          "cached_input": 0.2,
+          "cache_write": 2.5,
+          "output": 12.0
+        },
+        "long_context_pricing": true,
+        "note": "API price reduced 20% starting 2026-07-30."
+      }
+    ],
+    "gpt-5.6-luna": [
+      {
+        "effective_from": "2026-07-09T00:00:00Z",
+        "effective_to": "2026-07-30T00:00:00Z",
+        "rates": {
+          "input": 1.0,
+          "cached_input": 0.1,
+          "cache_write": 1.25,
+          "output": 6.0
+        },
+        "long_context_pricing": true,
+        "note": "GPT-5.6 Luna launch price; superseded by the 2026-07-30 API reduction."
+      },
+      {
+        "effective_from": "2026-07-30T00:00:00Z",
+        "rates": {
+          "input": 0.2,
+          "cached_input": 0.02,
+          "cache_write": 0.25,
+          "output": 1.2
+        },
+        "long_context_pricing": true,
+        "note": "API price reduced 80% starting 2026-07-30."
+      }
+    ],
+    "gpt-5.5": [
+      {
+        "effective_from": "2026-04-24T00:00:00Z",
+        "rates": {
+          "input": 5.0,
+          "cached_input": 0.5,
+          "cache_write": 6.25,
+          "output": 30.0
+        },
+        "long_context_pricing": true,
+        "note": "Official GPT-5.5 model price."
+      }
+    ],
+    "gpt-5.4": [
+      {
+        "effective_from": "2026-03-05T00:00:00Z",
+        "rates": {
+          "input": 2.5,
+          "cached_input": 0.25,
+          "cache_write": 3.125,
+          "output": 15.0
+        },
+        "long_context_pricing": true,
+        "note": "Official GPT-5.4 model price."
+      }
+    ],
+    "gpt-5.4-mini": [
+      {
+        "effective_from": "2026-03-17T00:00:00Z",
+        "rates": {
+          "input": 0.75,
+          "cached_input": 0.075,
+          "cache_write": 0.9375,
+          "output": 4.5
+        },
+        "long_context_pricing": false,
+        "note": "Official GPT-5.4 Mini model price; cache-write fallback is 1.25x input."
+      }
+    ],
+    "gpt-5.2-codex": [
+      {
+        "effective_from": "2026-01-14T00:00:00Z",
+        "rates": {
+          "input": 1.75,
+          "cached_input": 0.175,
+          "cache_write": 2.1875,
+          "output": 14.0
+        },
+        "long_context_pricing": false,
+        "note": "Official GPT-5.2-Codex model price; deprecated model retained for historical logs."
+      }
+    ],
+    "gpt-5.1": [
+      {
+        "effective_from": "2025-11-13T00:00:00Z",
+        "rates": {
+          "input": 1.25,
+          "cached_input": 0.125,
+          "cache_write": 1.5625,
+          "output": 10.0
+        },
+        "long_context_pricing": false,
+        "note": "Official GPT-5.1 price; Codex aliases retained for historical logs."
+      }
+    ],
+    "gpt-5": [
+      {
+        "effective_from": "2025-08-07T00:00:00Z",
+        "rates": {
+          "input": 1.25,
+          "cached_input": 0.125,
+          "cache_write": 1.5625,
+          "output": 10.0
+        },
+        "long_context_pricing": false,
+        "note": "Official GPT-5 price; GPT-5-Codex was offered at the same API price."
+      }
+    ],
+    "codex-mini-latest": [
+      {
+        "effective_from": "2025-04-16T00:00:00Z",
+        "rates": {
+          "input": 1.5,
+          "cached_input": 0.375,
+          "cache_write": 1.875,
+          "output": 6.0
+        },
+        "long_context_pricing": false,
+        "note": "Official deprecated codex-mini-latest model price."
+      }
+    ]
+  }
+}

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data:; connect-src 'self'; img-src 'self' data:">
+  <title>Codex Dollar</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <!--CODEX_METER_DATA-->
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Codex Token Meter 首页">
+      <span class="brand-mark" aria-hidden="true">C</span>
+      <span>
+        <strong>Codex Dollar</strong>
+        <small>本地用量与官方价格核算</small>
+      </span>
+    </a>
+    <div class="top-actions">
+      <span class="trust-pill"><i></i> Local-only</span>
+      <button id="refreshButton" class="button ghost" type="button">重新扫描</button>
+    </div>
+  </header>
+
+  <main id="top" class="shell">
+    <section class="hero">
+      <div class="eyebrow">OPENAI OFFICIAL LEDGERS · LOCAL JSONL</div>
+      <h1>每一枚 token，<br><span>分账算清楚。</span></h1>
+      <p class="hero-copy">API 美元单价按发生日期计算；ChatGPT/Codex 订阅 credits 与固定月费独立核算。API 降价不会悄悄改写会员账本。</p>
+      <div id="periodLabel" class="period-label">正在读取本地统计…</div>
+    </section>
+
+    <section class="trust-strip" aria-label="隐私保证">
+      <div><span>01</span><strong>只读本地日志</strong><small>sessions / archived_sessions</small></div>
+      <div><span>02</span><strong>不导出提示词</strong><small>无原始路径、标题或会话 ID</small></div>
+      <div><span>03</span><strong>官方来源白名单</strong><small>无第三方中转，无 sub2api</small></div>
+    </section>
+
+    <div id="alert" class="alert hidden" role="status"></div>
+
+    <section id="summaryGrid" class="kpi-grid" aria-label="用量摘要">
+      <article class="kpi skeleton"></article>
+      <article class="kpi skeleton"></article>
+      <article class="kpi skeleton"></article>
+      <article class="kpi skeleton"></article>
+    </section>
+
+    <section class="split-grid overview-grid">
+      <article class="panel limit-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-index">01</span>
+            <h2>官方限额快照</h2>
+          </div>
+          <span id="planBadge" class="tag">等待数据</span>
+        </div>
+        <div id="limitContent" class="limit-content loading-block"></div>
+      </article>
+
+      <article class="panel composition-panel">
+        <div class="panel-head">
+          <div>
+            <span class="section-index">02</span>
+            <h2>Token 构成</h2>
+          </div>
+          <span id="cacheBadge" class="tag accent">缓存命中 —</span>
+        </div>
+        <div id="tokenComposition" class="composition loading-block"></div>
+      </article>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="panel-head chart-head">
+        <div>
+          <span class="section-index">03</span>
+          <h2>每日使用轨迹</h2>
+          <p>输入总量包含缓存输入；图中已拆成互斥区间，避免重复展示。</p>
+        </div>
+        <div class="segmented" role="group" aria-label="图表区间">
+          <button type="button" data-range="7">7 天</button>
+          <button type="button" data-range="30" class="active">30 天</button>
+          <button type="button" data-range="all">全部</button>
+        </div>
+      </div>
+      <div id="dailyChart" class="daily-chart loading-block" aria-label="每日 token 柱状图"></div>
+      <div class="legend">
+        <span><i class="dot cached"></i>缓存输入</span>
+        <span><i class="dot input"></i>非缓存 / 写缓存输入</span>
+        <span><i class="dot output"></i>输出</span>
+      </div>
+    </section>
+
+    <section class="ledger-section">
+      <div class="section-title-row">
+        <div>
+          <span class="section-index">04</span>
+          <h2>两本账，永不串线</h2>
+        </div>
+        <p>相同 token 可以有 API 等价价值，但订阅内使用不是一张按 token 结算的 API 发票。</p>
+      </div>
+      <div class="ledger-grid">
+        <article class="ledger api-ledger">
+          <div class="ledger-title">
+            <span class="ledger-icon">$</span>
+            <div><strong>API 历史价格</strong><small>USD / 1M tokens · 按发生日期</small></div>
+          </div>
+          <div id="apiLedger" class="ledger-list loading-block"></div>
+        </article>
+        <article class="ledger subscription-ledger">
+          <div class="ledger-title">
+            <span class="ledger-icon">C</span>
+            <div><strong>订阅 credits</strong><small>独立费率 · 不继承 API 降价</small></div>
+          </div>
+          <div id="subscriptionLedger" class="ledger-list loading-block"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel table-panel">
+      <div class="panel-head">
+        <div>
+          <span class="section-index">05</span>
+          <h2>模型明细</h2>
+        </div>
+        <span id="coverageBadge" class="tag">价格覆盖 —</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>模型</th><th>调用</th><th>输入</th><th>缓存输入</th><th>输出</th><th>API 等价</th><th>订阅 credits</th><th>状态</th></tr></thead>
+          <tbody id="modelRows"><tr><td colspan="8" class="empty">正在计算…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel table-panel">
+      <div class="panel-head sessions-head">
+        <div>
+          <span class="section-index">06</span>
+          <h2>脱敏会话</h2>
+        </div>
+        <label class="search-box">
+          <span>搜索</span>
+          <input id="sessionSearch" type="search" placeholder="模型或 session-xxxx" autocomplete="off">
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>会话</th><th>最后活动</th><th>模型</th><th>调用</th><th>总 token</th><th>API 等价</th><th>订阅 credits</th></tr></thead>
+          <tbody id="sessionRows"><tr><td colspan="7" class="empty">正在整理…</td></tr></tbody>
+        </table>
+      </div>
+      <p id="sessionCount" class="table-note"></p>
+    </section>
+
+    <section class="method-grid">
+      <article class="panel compact-panel">
+        <div class="panel-head"><div><span class="section-index">07</span><h2>口径与限制</h2></div></div>
+        <ul id="caveatList" class="notes-list"></ul>
+      </article>
+      <article class="panel compact-panel">
+        <div class="panel-head"><div><span class="section-index">08</span><h2>官方来源</h2></div></div>
+        <div id="sourceList" class="source-list"></div>
+        <p id="retrievedAt" class="source-date"></p>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    <span>CODEX DOLLAR · v0.1</span>
+    <span>估算工具，不替代 OpenAI 官方账单</span>
+  </footer>
+</body>
+</html>

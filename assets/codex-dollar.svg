@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-labelledby="title desc">
+  <title id="title">Codex Dollar</title>
+  <desc id="desc">A green C-shaped token ledger mark on a dark background.</desc>
+  <defs>
+    <linearGradient id="g" x1="20" y1="12" x2="140" y2="148" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C5FFA9"/>
+      <stop offset="1" stop-color="#72D8C8"/>
+    </linearGradient>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feColorMatrix in="blur" values="0 0 0 0 0.45 0 0 0 0 0.9 0 0 0 0 0.58 0 0 0 .28 0"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="4" y="4" width="152" height="152" rx="38" fill="#0B0D0D"/>
+  <rect x="5" y="5" width="150" height="150" rx="37" fill="none" stroke="#A9F08F" stroke-opacity=".25" stroke-width="2"/>
+  <path d="M113 47A47 47 0 1 0 113 113" fill="none" stroke="url(#g)" stroke-width="18" stroke-linecap="round" filter="url(#shadow)"/>
+  <path d="M83 50v60M67 64h25a12 12 0 0 1 0 24H72a12 12 0 0 0 0 24h25" fill="none" stroke="#F1F8F3" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
