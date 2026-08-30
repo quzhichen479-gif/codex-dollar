@@ -6,6 +6,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
+from .monitor import build_weekly_monitor
 from .pricing import PriceBook, TOKEN_FIELDS, parse_datetime, split_input_tokens
 from .scanner import filter_events
 
@@ -225,6 +226,11 @@ def build_report(
     if not current_plan_type and plan_counts:
         current_plan_type = plan_counts.most_common(1)[0][0]
     plan_reference = pricebook.plan_reference(current_plan_type, override=plan_override)
+    weekly_monitor = build_weekly_monitor(
+        scan.get("rate_snapshots", []),
+        scan.get("events", []),
+        pricebook,
+    )
     rate_limit = None
     if isinstance(latest_rate, dict):
         rate_limit = {
@@ -255,6 +261,8 @@ def build_report(
         "本地 token 日志不能完整反映 Web Search、容器、图像生成等按调用计费项目，也不推断区域处理 10% 加价。",
         "财务对账应以 OpenAI API Costs endpoint 或官方 Usage Dashboard/发票为准。",
         "未知或没有公开价的模型不会套用近似价格，相关 token 会明确列为未计价。",
+        "周额度美元推算是本机 token 与官方百分比变化的相关估计，不是订阅现金价值或 OpenAI 承诺的固定额度。",
+        "ChatGPT Work、云端任务和其它设备会共享或影响用量；若这些消耗未出现在本机日志，周额度推算可信度会下降。",
     ]
     if plan_reference and plan_reference.get("confidence") not in {"official-name", "user-override"}:
         caveats.append(
@@ -297,6 +305,7 @@ def build_report(
             "plan_reference": plan_reference,
             "detected_plan_type": current_plan_type,
         },
+        "weekly_monitor": weekly_monitor,
         "daily": daily_rows,
         "models": model_rows,
         "sessions": session_rows,

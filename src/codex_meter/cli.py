@@ -104,6 +104,20 @@ def _print_summary(report: dict[str, Any]) -> None:
     unknown = report.get("unknown_pricing", {}).get("api", {})
     if unknown:
         print("  未计价模型: " + ", ".join(f"{name} ({_format_int(count)} tokens)" for name, count in unknown.items()))
+    monitor = report.get("weekly_monitor", {})
+    estimate = monitor.get("current_estimate") or {}
+    calibrated = monitor.get("calibrated_estimate") or {}
+    if estimate.get("weekly_api_equivalent_usd") is not None:
+        confidence = estimate.get("confidence", {})
+        print(
+            f"  当前周额度推算: ${estimate['weekly_api_equivalent_usd']:.4f} API 等价 "
+            f"({estimate['observed_percent_delta']:.1f}% 样本 · {confidence.get('level', 'unknown')})"
+        )
+    if calibrated.get("weekly_api_equivalent_usd") is not None:
+        print(
+            f"  同套餐历史校准: ${calibrated['weekly_api_equivalent_usd']:.4f} API 等价/周 "
+            f"({calibrated['sample_count']} 段样本)"
+        )
 
 
 def command_scan(args: argparse.Namespace) -> int:

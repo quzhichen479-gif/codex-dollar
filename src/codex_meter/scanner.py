@@ -266,6 +266,7 @@ def scan_codex(
         "files_discovered": len(files),
         "sessions": list(by_session.values()),
         "events": events,
+        "rate_snapshots": rate_snapshots,
         "latest_rate_limit": rate_snapshots[-1] if rate_snapshots else None,
         "plan_type_counts": dict(plan_counts),
         "malformed_relevant_lines": malformed,

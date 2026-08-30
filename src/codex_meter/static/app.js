@@ -5,7 +5,9 @@
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   let report = null;
   let chartRange = 30;
+  let loading = false;
   const embedded = Boolean(window.__CODEX_METER_REPORT__);
+  const AUTO_REFRESH_MS = 60_000;
 
   const escapeHtml = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -107,6 +109,109 @@
           </div>
         </div>
       </div>`;
+  }
+
+  function renderWeeklyMonitor() {
+    const monitor = report.weekly_monitor || {};
+    const badge = $("#weeklyMonitorBadge");
+    const content = $("#weeklyMonitorContent");
+    const latest = monitor.latest;
+    const current = monitor.current_estimate;
+    const calibrated = monitor.calibrated_estimate;
+    const confidence = current && current.confidence ? current.confidence : { level: "low", score: 0, reasons: [] };
+    const confidenceLabels = { high: "高可信", medium: "中等可信", low: "低可信 / 观察中" };
+
+    if (!latest) {
+      badge.textContent = "未发现周窗口";
+      badge.classList.remove("accent");
+      content.innerHTML = `<div class="monitor-empty">
+        <strong>还没有 7 天额度快照</strong>
+        <span>保持 Codex Dollar 运行并继续使用 Codex；检测到周窗口百分比变化后会自动开始反推。</span>
+      </div>`;
+      return;
+    }
+
+    const used = Number(latest.used_percent || 0);
+    const remaining = Number(latest.remaining_percent || 0);
+    const preferCalibrated = calibrated && (!current || confidence.level === "low");
+    const chosen = preferCalibrated ? calibrated : current;
+    const fullUsd = chosen && chosen.weekly_api_equivalent_usd;
+    const sourceLabel = preferCalibrated
+      ? `同套餐 ${integer(calibrated.sample_count)} 段校准`
+      : current ? "当前周实时样本" : "等待百分比变化";
+    const statusLabels = {
+      ready: confidenceLabels[confidence.level] || "可用",
+      provisional: "初步估算",
+      collecting: "采集中",
+      uncorrelated: "百分比有变化，未匹配到本地 token",
+      unavailable: "不可用",
+    };
+    badge.textContent = statusLabels[monitor.status] || "监督中";
+    badge.classList.toggle("accent", monitor.status === "ready");
+
+    if (!chosen || fullUsd == null) {
+      content.innerHTML = `<div class="monitor-empty">
+        <div class="monitor-progress compact-progress"><span style="width:${Math.max(0, Math.min(100, used))}%"></span></div>
+        <strong>本周已用 ${used.toFixed(1)}% · 剩余 ${remaining.toFixed(1)}%</strong>
+        <span>${monitor.status === "uncorrelated" ? "额度百分比发生了变化，但同期没有可定价的本地订阅 token；可能包含其它设备、Work 或云端消耗。" : "至少需要两次不同百分比快照和其间的本地 token，才能推算整周美元等价。"}</span>
+        <small>下次重置：${escapeHtml(dateTime(latest.resets_at))} · 已采集 ${integer(monitor.snapshot_count)} 个周快照</small>
+      </div>`;
+      return;
+    }
+
+    const low = current && current.weekly_api_equivalent_low_usd;
+    const high = current && current.weekly_api_equivalent_high_usd;
+    const range = low == null ? "—" : high == null ? `${money(low)} 起（样本太小，无稳定上界）` : `${money(low)} – ${money(high)}`;
+    const weekTokens = chosen.weekly_token_equivalent;
+    const weekCredits = chosen.weekly_subscription_credits;
+    const remainingUsd = Number(fullUsd) * remaining / 100;
+    const sampleDelta = current ? Number(current.observed_percent_delta || 0) : 0;
+    const sampleTokens = current ? Number(current.observed_tokens || 0) : 0;
+    const sampleUsd = current ? Number(current.observed_api_equivalent_usd || 0) : 0;
+    const reasons = [...(confidence.reasons || []), ...(monitor.limitations || []).slice(0, 2)];
+    const history = (monitor.history || []).filter(row => row.weekly_api_equivalent_usd != null).slice(0, 4);
+
+    content.innerHTML = `
+      <div class="monitor-layout">
+        <div class="monitor-primary">
+          <span class="monitor-kicker">${escapeHtml(sourceLabel)} · API STANDARD 等价</span>
+          <div class="monitor-value">${money(fullUsd)}<small>/ 100% 周额度</small></div>
+          <p>${preferCalibrated
+            ? `基于同套餐 ${integer(calibrated.sample_count)} 个互不重叠样本、合计 ${Number(calibrated.observed_percent_total).toFixed(1)} 个百分点加权。`
+            : `由当前样本 ${sampleDelta.toFixed(1)}% 的额度变化与同期 token 直接反推。`}</p>
+          <div class="monitor-progress"><span style="width:${Math.max(0, Math.min(100, used))}%"></span></div>
+          <div class="monitor-progress-label"><span>已用 ${used.toFixed(1)}%</span><span>剩余 ${remaining.toFixed(1)}% · 约 ${money(remainingUsd)}</span></div>
+        </div>
+        <div class="monitor-metrics">
+          <div><span>当前样本额度变化</span><strong>${sampleDelta.toFixed(1)}%</strong></div>
+          <div><span>同期本地 Token</span><strong>${compact(sampleTokens)}</strong></div>
+          <div><span>同期 API 等价</span><strong>${money(sampleUsd)}</strong></div>
+          <div><span>当前样本取整区间</span><strong>${escapeHtml(range)}</strong></div>
+          <div><span>推算周 Token 等价</span><strong>${weekTokens == null ? "—" : compact(weekTokens)}</strong></div>
+          <div><span>推算周 Credits</span><strong>${weekCredits == null ? "—" : credits(weekCredits)}</strong></div>
+        </div>
+      </div>
+      <div class="monitor-detail-row">
+        <div class="confidence-block ${escapeHtml(confidence.level)}">
+          <span>当前样本可信度</span>
+          <strong>${escapeHtml(confidenceLabels[confidence.level] || "观察中")} · ${Number(confidence.score || 0).toFixed(0)}/100</strong>
+          <small>${escapeHtml(reasons.join(" "))}</small>
+        </div>
+        <div class="reset-block">
+          <span>周窗口重置</span>
+          <strong>${escapeHtml(dateTime(latest.resets_at))}</strong>
+          <small>${integer(monitor.snapshot_count)} 个周快照 · App 每 60 秒自动重新扫描</small>
+        </div>
+      </div>
+      ${history.length ? `<div class="monitor-history">
+        <div class="monitor-history-head"><strong>最近有效观测</strong><span>美元值随模型组合变化</span></div>
+        ${history.map(row => `<div class="monitor-history-row">
+          <span>${escapeHtml(row.plan_type)} · ${Number(row.observed_percent_delta).toFixed(1)}%</span>
+          <span>${compact(row.observed_tokens)} tokens</span>
+          <strong>${money(row.weekly_api_equivalent_usd)} / 周</strong>
+          <span class="history-confidence ${escapeHtml(row.confidence.level)}">${escapeHtml(confidenceLabels[row.confidence.level] || row.confidence.level)}</span>
+        </div>`).join("")}
+      </div>` : ""}`;
   }
 
   function renderComposition() {
@@ -239,6 +344,7 @@
   function render() {
     renderSummary();
     renderLimit();
+    renderWeeklyMonitor();
     renderComposition();
     renderDaily();
     renderLedgers();
@@ -248,6 +354,8 @@
   }
 
   async function load(refresh = false) {
+    if (loading) return;
+    loading = true;
     const button = $("#refreshButton");
     button.disabled = true;
     button.textContent = refresh ? "扫描中…" : "读取中…";
@@ -260,9 +368,12 @@
         report = await response.json();
       }
       render();
+      const status = $("#monitorStatus");
+      status.innerHTML = `<i></i>${embedded ? "离线快照" : `已监督 · ${new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`}`;
     } catch (error) {
       showAlert(`读取报告失败：${error.message}`, "error");
     } finally {
+      loading = false;
       button.disabled = embedded;
       button.textContent = embedded ? "离线报告" : "重新扫描";
       if (embedded) button.title = "单文件离线报告不支持重新扫描；请重新运行 report 命令。";
@@ -276,5 +387,10 @@
   }));
   $("#sessionSearch").addEventListener("input", () => report && renderSessions());
   $("#refreshButton").addEventListener("click", () => !embedded && load(true));
+  if (!embedded) {
+    window.setInterval(() => {
+      if (document.visibilityState === "visible") load(true);
+    }, AUTO_REFRESH_MS);
+  }
   load(false);
 })();

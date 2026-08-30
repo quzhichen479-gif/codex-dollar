@@ -62,6 +62,7 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(report["summary"]["unpriced_api_tokens"], 110)
         self.assertEqual(report["current"]["rate_limit"]["primary"]["remaining_percent"], 80.0)
         self.assertEqual(report["current"]["plan_reference"]["monthly_usd"], 20.0)
+        self.assertEqual(report["weekly_monitor"]["status"], "unavailable")
 
 
 if __name__ == "__main__":

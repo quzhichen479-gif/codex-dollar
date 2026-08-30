@@ -76,6 +76,8 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(result["events"][0]["model"], "gpt-5.6-sol")
         self.assertEqual(result["events"][0]["service_tier"], "priority")
         self.assertEqual(result["events"][0]["billing_mode"], "subscription")
+        self.assertEqual(len(result["rate_snapshots"]), 1)
+        self.assertEqual(result["rate_snapshots"][0]["primary"]["used_percent"], 25)
         serialized = json.dumps(result)
         self.assertNotIn("SECRET PROMPT", serialized)
         self.assertNotIn("secret_extra", serialized)
