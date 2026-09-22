@@ -2,7 +2,7 @@
   "schema_version": 1,
   "table_kind": "subscription",
   "unit_tokens": 1000000,
-  "retrieved_at": "2026-08-28",
+  "retrieved_at": "2026-09-22",
   "separation_policy": "Subscription credit rates and fixed membership fees are independent from API token-price history. Never inherit an API reduction into this table.",
   "source_policy": {
     "allowed_hosts": [
@@ -20,6 +20,10 @@
     {
       "label": "Official Codex speed and credit multipliers",
       "url": "https://learn.chatgpt.com/docs/agent-configuration/speed"
+    },
+    {
+      "label": "GPT-6 Astra release date",
+      "url": "https://developers.openai.com/api/docs/changelog"
     }
   ],
   "aliases": {
@@ -27,6 +31,7 @@
   },
   "cache_write_policy": "The official Codex credit card has no separate cache-write column; cache-write tokens are conservatively classified as regular input credits.",
   "fast_multipliers": {
+    "gpt-6-astra": 2.5,
     "gpt-5.6-sol": 2.5,
     "gpt-5.6-terra": 2.5,
     "gpt-5.6-luna": 2.5,
@@ -35,6 +40,11 @@
     "gpt-5.4-mini": 2.0
   },
   "models": {
+    "gpt-6-astra": {
+      "effective_from": "2026-09-03T00:00:00Z",
+      "credits": {"input": 250.0, "cached_input": 25.0, "output": 1250.0},
+      "note": "Official subscription token rates and Fast multiplier checked 2026-09-22, independently from API pricing. The ledger uses the model's 2026-09-03 release date as its first supported usage day."
+    },
     "gpt-5.6-sol": {
       "effective_from": "2026-07-09T00:00:00Z",
       "credits": {"input": 100.0, "cached_input": 10.0, "output": 500.0}

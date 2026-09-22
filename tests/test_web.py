@@ -1,0 +1,56 @@
+from __future__ import annotations
+
+import json
+import threading
+import unittest
+from urllib.error import HTTPError
+from urllib.request import urlopen
+
+from codex_meter.pricing import PriceBook
+from codex_meter.report import build_report
+from codex_meter.web import create_dashboard_server, render_standalone
+
+
+class WebTests(unittest.TestCase):
+    def test_standalone_inlines_question_bank_before_app_and_escapes_report(self) -> None:
+        report = build_report({"events": []}, PriceBook.default())
+        report["caveats"].append('</script><script>alert("unsafe")</script>')
+        html = render_standalone(report)
+        self.assertNotIn('src="/assets/', html)
+        self.assertNotIn('href="/assets/', html)
+        self.assertNotIn('</script><script>alert("unsafe")</script>', html)
+        self.assertIn('<\\/script>', html)
+        self.assertLess(html.index("CODEX_BENCHMARKS"), html.index("async function load("))
+        self.assertLess(html.index("</main>"), html.index("CODEX_BENCHMARKS"))
+        self.assertLess(html.index("async function load("), html.index("</body>"))
+        self.assertIn("鹈鹕", html)
+
+    def test_loopback_serves_bank_without_including_report_data(self) -> None:
+        report = build_report({"events": []}, PriceBook.default())
+        report["caveats"].append("PRIVATE_REPORT_SENTINEL")
+        server = create_dashboard_server(lambda: report, port=0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            self.assertEqual(server.server_address[0], "127.0.0.1")
+            base = f"http://127.0.0.1:{server.server_port}"
+            with urlopen(base + "/assets/benchmarks.js", timeout=5) as response:
+                text = response.read().decode("utf-8")
+                self.assertIn("javascript", response.headers["Content-Type"])
+                self.assertEqual(response.headers["Referrer-Policy"], "no-referrer")
+                self.assertIn("connect-src 'self'", response.headers["Content-Security-Policy"])
+                self.assertIn("CODEX_BENCHMARKS", text)
+                self.assertNotIn("PRIVATE_REPORT_SENTINEL", text)
+            with urlopen(base + "/api/report", timeout=5) as response:
+                self.assertEqual(json.load(response)["summary"]["calls"], 0)
+            with self.assertRaises(HTTPError) as error:
+                urlopen(base + "/assets/../web.py", timeout=5)
+            self.assertEqual(error.exception.code, 404)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+
+if __name__ == "__main__":
+    unittest.main()

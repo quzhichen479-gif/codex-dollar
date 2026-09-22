@@ -26,6 +26,112 @@ class PriceBookTests(unittest.TestCase):
         self.assertEqual(split["cache_write"], 100)
         self.assertEqual(split["total"], 1_050)
 
+    def test_astra_launch_date_applies_to_both_ledgers(self) -> None:
+        tokens = {"input_tokens": 100_000, "output_tokens": 10_000}
+        for estimator, expected in (
+            (self.book.estimate_api, 1.5),
+            (self.book.estimate_subscription_credits, 37.5),
+        ):
+            with self.subTest(estimator=estimator.__name__):
+                before = estimator(
+                    model="gpt-6-astra", timestamp="2026-09-02T23:59:59Z", tokens=tokens
+                )
+                at_launch = estimator(
+                    model="gpt-6-astra", timestamp="2026-09-02T20:00:00-04:00", tokens=tokens
+                )
+                self.assertFalse(before.priced)
+                self.assertTrue(at_launch.priced)
+                self.assertAlmostEqual(at_launch.value, expected)
+
+    def test_astra_api_cache_buckets_and_service_tiers(self) -> None:
+        tokens = {
+            "input_tokens": 100_000,
+            "cached_input_tokens": 60_000,
+            "cache_write_input_tokens": 20_000,
+            "output_tokens": 10_000,
+            "reasoning_output_tokens": 5_000,
+        }
+        for tier, multiplier in (
+            ("standard", 1), ("fast", 2), ("priority", 2), ("batch", 0.5), ("flex", 0.5)
+        ):
+            with self.subTest(tier=tier):
+                estimate = self.book.estimate_api(
+                    model="gpt-6-astra", timestamp="2026-09-22T00:00:00Z",
+                    tokens=tokens, service_tier=tier,
+                )
+                self.assertTrue(estimate.priced)
+                self.assertEqual(estimate.context_band, "short")
+                self.assertAlmostEqual(estimate.components["input"], 0.2 * multiplier)
+                self.assertAlmostEqual(estimate.components["cached_input"], 0.06 * multiplier)
+                self.assertAlmostEqual(estimate.components["cache_write"], 0.25 * multiplier)
+                self.assertAlmostEqual(estimate.components["output"], 0.5 * multiplier)
+                self.assertAlmostEqual(estimate.value, 1.01 * multiplier)
+
+    def test_astra_long_context_threshold_includes_cached_input(self) -> None:
+        for input_count, expected_band, expected_value in (
+            (272_000, "short", 5.272), (272_001, "long", 8.044002)
+        ):
+            with self.subTest(input_tokens=input_count):
+                estimate = self.book.estimate_api(
+                    model="gpt-6-astra", timestamp="2026-09-22T00:00:00Z",
+                    tokens={
+                        "input_tokens": input_count,
+                        "cached_input_tokens": input_count,
+                        "output_tokens": 100_000,
+                    },
+                )
+                self.assertEqual(estimate.context_band, expected_band)
+                self.assertAlmostEqual(estimate.value, expected_value)
+
+    def test_astra_long_context_multiplies_all_input_buckets(self) -> None:
+        estimate = self.book.estimate_api(
+            model="gpt-6-astra", timestamp="2026-09-22T00:00:00Z",
+            tokens={
+                "input_tokens": 300_000,
+                "cached_input_tokens": 100_000,
+                "cache_write_input_tokens": 100_000,
+                "output_tokens": 10_000,
+            },
+        )
+        self.assertEqual(estimate.context_band, "long")
+        self.assertAlmostEqual(estimate.components["input"], 2.0)
+        self.assertAlmostEqual(estimate.components["cached_input"], 0.2)
+        self.assertAlmostEqual(estimate.components["cache_write"], 2.5)
+        self.assertAlmostEqual(estimate.components["output"], 0.75)
+        self.assertAlmostEqual(estimate.value, 5.45)
+
+    def test_astra_subscription_does_not_inherit_api_rules(self) -> None:
+        tokens = {
+            "input_tokens": 300_000,
+            "cached_input_tokens": 100_000,
+            "cache_write_input_tokens": 100_000,
+            "output_tokens": 10_000,
+        }
+        for tier, multiplier in (("default", 1), ("fast", 2.5), ("priority", 2.5)):
+            with self.subTest(tier=tier):
+                estimate = self.book.estimate_subscription_credits(
+                    model="gpt-6-astra", timestamp="2026-09-22T00:00:00Z",
+                    tokens=tokens, service_tier=tier,
+                )
+                self.assertTrue(estimate.priced)
+                self.assertEqual(estimate.unit, "credits")
+                # Cache writes use ordinary input credits, and the API's long
+                # context and Fast multipliers must not enter this estimate.
+                self.assertAlmostEqual(estimate.components["input"], 50.0 * multiplier)
+                self.assertAlmostEqual(estimate.components["cached_input"], 2.5 * multiplier)
+                self.assertAlmostEqual(estimate.components["output"], 12.5 * multiplier)
+                self.assertAlmostEqual(estimate.value, 65.0 * multiplier)
+
+    def test_astra_like_unverified_model_ids_remain_unpriced(self) -> None:
+        for model in ("gpt-6", "gpt-6-astra-preview", "astra"):
+            for estimator in (self.book.estimate_api, self.book.estimate_subscription_credits):
+                with self.subTest(model=model, estimator=estimator.__name__):
+                    estimate = estimator(
+                        model=model, timestamp="2026-09-22T00:00:00Z",
+                        tokens={"input_tokens": 100_000, "output_tokens": 10_000},
+                    )
+                    self.assertFalse(estimate.priced)
+
     def test_sol_api_cut_uses_event_date(self) -> None:
         usage = {"input_tokens": 1_000_000, "output_tokens": 1_000_000}
         before = self.book.estimate_api(

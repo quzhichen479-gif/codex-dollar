@@ -27,7 +27,6 @@ def _json_for_script(report: dict[str, Any]) -> str:
 def render_standalone(report: dict[str, Any]) -> str:
     html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
     css = (STATIC_DIR / "styles.css").read_text(encoding="utf-8")
-    js = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
     html = html.replace(
         '<link rel="stylesheet" href="/assets/styles.css">',
         f"<style>\n{css}\n</style>",
@@ -36,11 +35,16 @@ def render_standalone(report: dict[str, Any]) -> str:
         "<!--CODEX_METER_DATA-->",
         f"<script>window.__CODEX_METER_REPORT__={_json_for_script(report)};</script>",
     )
-    html = html.replace(
-        '<script src="/assets/app.js" defer></script>',
-        f"<script>\n{js}\n</script>",
-    )
-    return html
+    scripts = []
+    for name in ("benchmarks.js", "app.js"):
+        js = (STATIC_DIR / name).read_text(encoding="utf-8")
+        scripts.append(f"<script>\n{js}\n</script>")
+        html = html.replace(
+            f'<script src="/assets/{name}" defer></script>',
+            "",
+        )
+    # Inline scripts do not honor defer. Run after the body has been parsed.
+    return html.replace("</body>", "\n".join(scripts) + "\n</body>")
 
 
 class ReportState:
@@ -90,8 +94,8 @@ def _handler_factory(state: ReportState) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/assets/styles.css":
                 self._send((STATIC_DIR / "styles.css").read_bytes(), "text/css; charset=utf-8")
                 return
-            if parsed.path == "/assets/app.js":
-                self._send((STATIC_DIR / "app.js").read_bytes(), "text/javascript; charset=utf-8")
+            if parsed.path in {"/assets/app.js", "/assets/benchmarks.js"}:
+                self._send((STATIC_DIR / Path(parsed.path).name).read_bytes(), "text/javascript; charset=utf-8")
                 return
             if parsed.path == "/api/report":
                 query = parse_qs(parsed.query)

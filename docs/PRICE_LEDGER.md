@@ -13,6 +13,7 @@ Codex Dollar 维护两份物理分离的数据文件：
 
 | 模型 | 生效区间（UTC） | 费率 |
 |---|---|---|
+| GPT-6 Astra | 2026-09-03 → 当前 | 10 / 1 / 12.5 / 50 |
 | GPT-5.6 Sol | 2026-07-09 → 2026-08-21 | 5 / 0.5 / 6.25 / 30 |
 | GPT-5.6 Sol | 2026-08-21 → 当前 | 4 / 0.4 / 5 / 20 |
 | GPT-5.6 Terra | 2026-07-09 → 2026-07-30 | 2.5 / 0.25 / 3.125 / 15 |
@@ -22,12 +23,15 @@ Codex Dollar 维护两份物理分离的数据文件：
 
 账本还保留 GPT-5.5、GPT-5.4、GPT-5.4 mini、GPT-5.2-Codex、GPT-5.1、GPT-5 与 codex-mini-latest 的官方记录，以便计算历史日志。数据文件本身是最终可执行明细。
 
+Astra 的发布日期由官方 API Changelog 确认为 2026-09-03，费率由模型页面核对。官方没有给出当日具体发布时间，账本沿用以该日 UTC 00:00 为边界的日期粒度约定；早于该日的 Astra 日志保持未计价。只识别官方模型 ID `gpt-6-astra`，不推测 `gpt-6`、预览名称或其他别名。
+
 ## 当前内置订阅 credits
 
 单位为 credits / 1M tokens；顺序是 input / cached input / output。
 
 | 模型 | credits | Fast 倍率 |
 |---|---:|---:|
+| GPT-6 Astra | 250 / 25 / 1,250 | 2.5× |
 | GPT-5.6 Sol | 100 / 10 / 500 | 2.5× |
 | GPT-5.6 Terra | 50 / 5 / 300 | 2.5× |
 | GPT-5.6 Luna | 5 / 0.5 / 30 | 2.5× |
@@ -36,6 +40,8 @@ Codex Dollar 维护两份物理分离的数据文件：
 | GPT-5.4 mini | 18.75 / 1.875 / 113 | 2× |
 
 官方订阅 credits 表没有单独的 cache-write 列。为避免低估，订阅估算把写缓存 token 归入普通 input；这个规则不会影响 API 账本。
+
+Astra 的订阅费率和 Fast 倍率分别取自官方订阅 pricing/speed 页面，以模型发布日期作为首个支持的日志日期。API Fast 为 2×，订阅 Fast 为 2.5×，两者独立。订阅 credits 不套用 API 的长上下文倍率，也不按 API 美元价格换算。
 
 ## 长上下文与服务等级
 
@@ -79,7 +85,8 @@ API 是按 token 与部分工具调用计费的独立产品。ChatGPT/Codex 会�
 - [OpenAI API Pricing](https://developers.openai.com/api/docs/pricing)
 - [OpenAI API Changelog](https://developers.openai.com/api/docs/changelog)
 - [OpenAI Model catalog](https://developers.openai.com/api/docs/models)
+- [GPT-6 Astra model pricing](https://developers.openai.com/api/docs/models/gpt-6-astra)
 - [ChatGPT Work / Codex Pricing](https://learn.chatgpt.com/docs/pricing)
 - [Codex speed](https://learn.chatgpt.com/docs/agent-configuration/speed)
 
-最后核对：2026-08-28。
+最后核对 Astra：2026-09-22；其他模型历史记录沿用 2026-08-28 账本。

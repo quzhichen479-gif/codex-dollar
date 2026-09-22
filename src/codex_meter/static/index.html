@@ -9,6 +9,7 @@
   <title>Codex Dollar</title>
   <link rel="stylesheet" href="/assets/styles.css">
   <!--CODEX_METER_DATA-->
+  <script src="/assets/benchmarks.js" defer></script>
   <script src="/assets/app.js" defer></script>
 </head>
 <body>
@@ -23,6 +24,7 @@
       </span>
     </a>
     <div class="top-actions">
+      <a class="button ghost benchmark-shortcut" href="#benchmarks">能力试题</a>
       <span class="trust-pill"><i></i> Local-only</span>
       <span id="monitorStatus" class="trust-pill monitor-status"><i></i> 60s 自动监督</span>
       <button id="refreshButton" class="button ghost" type="button">重新扫描</button>
@@ -171,13 +173,33 @@
       <p id="sessionCount" class="table-note"></p>
     </section>
 
+    <section id="benchmarks" class="benchmark-section" aria-labelledby="benchmarkTitle">
+      <div class="section-title-row">
+        <div>
+          <span class="section-index">08 · MODEL PLAYGROUND</span>
+          <h2 id="benchmarkTitle">用一道小题，看看模型表现</h2>
+        </div>
+        <span class="tag accent">6 道固定题 · 本地题库</span>
+      </div>
+      <p class="benchmark-intro">复制题目到 Codex，或打开 ChatGPT 预填页。请在目标页选择 Astra 或其他可用模型后提交；若未预填，直接粘贴。测试会消耗目标服务额度，本工具不调用模型、不自动评分。</p>
+      <p class="benchmark-guidance">比较时保持题目、推理强度和工具权限一致，使用新会话并多试几次。少量小题只能观察具体表现，不代表总体能力。</p>
+      <div id="benchmarkGrid" class="benchmark-grid"><p class="empty">正在加载本地题库…</p></div>
+      <p id="benchmarkStatus" class="benchmark-status" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div id="benchmarkManualCopy" class="benchmark-manual-copy hidden">
+        <label for="benchmarkCopyText">浏览器未允许自动复制，请复制以下已选中的题目：</label>
+        <textarea id="benchmarkCopyText" rows="7" readonly spellcheck="false"></textarea>
+        <button id="benchmarkCloseCopy" class="button ghost" type="button">收起</button>
+      </div>
+      <noscript><p class="benchmark-guidance">启用 JavaScript 后可查看并复制题目。</p></noscript>
+    </section>
+
     <section class="method-grid">
       <article class="panel compact-panel">
-        <div class="panel-head"><div><span class="section-index">08</span><h2>口径与限制</h2></div></div>
+        <div class="panel-head"><div><span class="section-index">09</span><h2>口径与限制</h2></div></div>
         <ul id="caveatList" class="notes-list"></ul>
       </article>
       <article class="panel compact-panel">
-        <div class="panel-head"><div><span class="section-index">09</span><h2>官方来源</h2></div></div>
+        <div class="panel-head"><div><span class="section-index">10</span><h2>官方来源</h2></div></div>
         <div id="sourceList" class="source-list"></div>
         <p id="retrievedAt" class="source-date"></p>
       </article>
@@ -185,7 +207,7 @@
   </main>
 
   <footer>
-    <span>CODEX DOLLAR · v0.2.0</span>
+    <span>CODEX DOLLAR · v0.3.0</span>
     <span>估算工具，不替代 OpenAI 官方账单</span>
   </footer>
 </body>

@@ -263,7 +263,7 @@
   }
 
   function renderLedgers() {
-    const apiRows = (report.pricing_ledger.api || []).filter(row => row.model.startsWith("gpt-5.6"));
+    const apiRows = report.pricing_ledger.api || [];
     $("#apiLedger").innerHTML = apiRows.map((row, index, list) => {
       const r = row.rates;
       const nextSameModel = list.find((candidate, j) => j > index && candidate.model === row.model);
@@ -341,6 +341,70 @@
     $("#retrievedAt").textContent = `价格表核对日期：API ${retrieved.api || "—"} · 订阅 ${retrieved.subscription || "—"}`;
   }
 
+  function initBenchmarks() {
+    const grid = $("#benchmarkGrid");
+    const catalog = window.CODEX_BENCHMARKS;
+    if (!grid) return;
+    if (!catalog || !catalog.questions.length) {
+      grid.innerHTML = `<p class="empty">题库未加载，请重新打开报告或刷新页面。</p>`;
+      return;
+    }
+    const status = $("#benchmarkStatus");
+    const fallback = $("#benchmarkManualCopy");
+    const copyText = $("#benchmarkCopyText");
+    let lastCopyButton = null;
+    grid.innerHTML = catalog.questions.map((question, index) => `
+      <article class="benchmark-card" aria-labelledby="benchmark-${escapeHtml(question.id)}">
+        <div class="benchmark-card-top"><span>${String(index + 1).padStart(2, "0")}</span><span>${escapeHtml(question.category)}</span></div>
+        <h3 id="benchmark-${escapeHtml(question.id)}">${escapeHtml(question.title)}</h3>
+        <p class="benchmark-summary">${escapeHtml(question.summary)}</p>
+        <details class="benchmark-details benchmark-prompt">
+          <summary>查看完整题目</summary>
+          <pre>${escapeHtml(question.prompt)}</pre>
+        </details>
+        <div class="benchmark-actions">
+          <button class="button benchmark-copy" type="button" data-copy-benchmark="${escapeHtml(question.id)}" aria-label="复制题目：${escapeHtml(question.title)}">复制题目</button>
+          <a class="button ghost" href="${escapeHtml(catalog.chatgptUrl(question.prompt))}" target="_blank" rel="noopener noreferrer" aria-label="在 ChatGPT 新标签页打开：${escapeHtml(question.title)}">打开 ChatGPT <span aria-hidden="true">↗</span></a>
+        </div>
+        <details class="benchmark-details benchmark-rubric">
+          <summary>评价要点 / 参考答案</summary>
+          <ul>${question.rubric.map(point => `<li>${escapeHtml(point)}</li>`).join("")}</ul>
+          <p class="benchmark-reference">${escapeHtml(question.reference)}</p>
+        </details>
+      </article>`).join("");
+
+    grid.addEventListener("click", async event => {
+      const button = event.target.closest("[data-copy-benchmark]");
+      if (!button) return;
+      const question = catalog.questions.find(item => item.id === button.dataset.copyBenchmark);
+      if (!question) return;
+      lastCopyButton = button;
+      button.disabled = true;
+      // Clear old feedback so repeated copies announce the new result as well.
+      status.textContent = "";
+      try {
+        if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error("Clipboard unavailable");
+        await navigator.clipboard.writeText(question.prompt);
+        fallback.classList.add("hidden");
+        status.textContent = `已复制「${question.title}」，可粘贴到 Codex 或 ChatGPT。`;
+      } catch {
+        copyText.value = question.prompt;
+        fallback.classList.remove("hidden");
+        status.textContent = `「${question.title}」未能自动复制，请手动复制下方已选中的题目。`;
+        copyText.focus();
+        copyText.select();
+        copyText.setSelectionRange(0, copyText.value.length);
+      } finally {
+        button.disabled = false;
+      }
+    });
+    $("#benchmarkCloseCopy").addEventListener("click", () => {
+      fallback.classList.add("hidden");
+      status.textContent = "手动复制区域已收起。";
+      if (lastCopyButton) lastCopyButton.focus();
+    });
+  }
+
   function render() {
     renderSummary();
     renderLimit();
@@ -392,5 +456,6 @@
       if (document.visibilityState === "visible") load(true);
     }, AUTO_REFRESH_MS);
   }
+  initBenchmarks();
   load(false);
 })();
