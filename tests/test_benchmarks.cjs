@@ -82,10 +82,10 @@ test("questions remain usable on report failure and copy only the selected promp
 
 test("denied clipboard exposes a selected manual copy area and restores focus on close", async () => {
   const { elements } = dashboardWithFailedReport({ writeText: async () => { throw new Error("Denied"); } });
-  const button = { dataset: { copyBenchmark: "interval-edges" }, closest() { return this; }, focus() { this.focused = true; } };
+  const button = { dataset: { copyBenchmark: "bounded-two-lies" }, closest() { return this; }, focus() { this.focused = true; } };
   await elements.get("#benchmarkGrid").handlers.click({ target: button });
   const textarea = elements.get("#benchmarkCopyText");
-  assert.equal(textarea.value, catalog.questions.find(q => q.id === "interval-edges").prompt);
+  assert.equal(textarea.value, catalog.questions.find(q => q.id === "bounded-two-lies").prompt);
   assert.equal(textarea.focused, true);
   assert.deepEqual(textarea.selection, [0, textarea.value.length]);
   assert.equal(elements.get("#benchmarkManualCopy").classList.contains("hidden"), false);

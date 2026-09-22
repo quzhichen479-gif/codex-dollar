@@ -177,12 +177,12 @@
       <div class="section-title-row">
         <div>
           <span class="section-index">08 · MODEL PLAYGROUND</span>
-          <h2 id="benchmarkTitle">用一道小题，看看模型表现</h2>
+          <h2 id="benchmarkTitle">多步逻辑，逐项验算</h2>
         </div>
-        <span class="tag accent">6 道固定题 · 本地题库</span>
+        <span id="benchmarkCount" class="tag accent">本地题库</span>
       </div>
       <p class="benchmark-intro">复制题目到 Codex，或打开 ChatGPT 预填页。请在目标页选择 Astra 或其他可用模型后提交；若未预填，直接粘贴。测试会消耗目标服务额度，本工具不调用模型、不自动评分。</p>
-      <p class="benchmark-guidance">比较时保持题目、推理强度和工具权限一致，使用新会话并多试几次。少量小题只能观察具体表现，不代表总体能力。</p>
+      <p class="benchmark-guidance">逻辑题默认闭卷，要求完整策略、反事实分支和最优性证明。每题附 10 分评分要点；算术失误与逻辑错误分开记录。Sol 盲测使用 xhigh、独立上下文、禁用工具，仅代表单次表现；使用工具的结果请另记，勿直接混比。</p>
       <div id="benchmarkGrid" class="benchmark-grid"><p class="empty">正在加载本地题库…</p></div>
       <p id="benchmarkStatus" class="benchmark-status" role="status" aria-live="polite" aria-atomic="true"></p>
       <div id="benchmarkManualCopy" class="benchmark-manual-copy hidden">
@@ -207,7 +207,7 @@
   </main>
 
   <footer>
-    <span>CODEX DOLLAR · v0.3.0</span>
+    <span>CODEX DOLLAR · v0.4.0</span>
     <span>估算工具，不替代 OpenAI 官方账单</span>
   </footer>
 </body>

@@ -350,6 +350,8 @@
       return;
     }
     const status = $("#benchmarkStatus");
+    const logicCount = catalog.questions.filter(question => question.track === "logic").length;
+    $("#benchmarkCount").textContent = `${logicCount} 道逻辑题 + ${catalog.questions.length - logicCount} 道作画对照`;
     const fallback = $("#benchmarkManualCopy");
     const copyText = $("#benchmarkCopyText");
     let lastCopyButton = null;
@@ -368,6 +370,7 @@
         </div>
         <details class="benchmark-details benchmark-rubric">
           <summary>评价要点 / 参考答案</summary>
+          <p class="benchmark-calibration">${escapeHtml(question.calibration || "尚无模型实测记录")}</p>
           <ul>${question.rubric.map(point => `<li>${escapeHtml(point)}</li>`).join("")}</ul>
           <p class="benchmark-reference">${escapeHtml(question.reference)}</p>
         </details>

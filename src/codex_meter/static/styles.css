@@ -269,7 +269,8 @@ td.muted { color: var(--muted); }
 .benchmark-rubric { padding-top: 15px; border-top: 1px solid var(--line); }
 .benchmark-rubric ul { margin: 13px 0; padding-left: 18px; color: var(--muted); }
 .benchmark-rubric li + li { margin-top: 7px; }
-.benchmark-reference { margin: 0; padding: 12px; border-radius: 9px; background: rgba(169,240,143,.04); color: #cbd6ce; overflow-wrap: anywhere; }
+.benchmark-reference { margin: 0; padding: 12px; border-radius: 9px; background: rgba(169,240,143,.04); color: #cbd6ce; overflow-wrap: anywhere; white-space: pre-wrap; }
+.benchmark-calibration { color: var(--green); margin: 13px 0; }
 .benchmark-status { min-height: 19px; margin: 14px 0 0; color: var(--green); font-size: 11px; line-height: 1.7; }
 .benchmark-manual-copy { margin-top: 12px; padding: 19px; border: 1px solid var(--line-strong); border-radius: 13px; background: var(--surface); }
 .benchmark-manual-copy label { display: block; margin-bottom: 11px; color: var(--muted); font-size: 12px; }
