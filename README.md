@@ -17,24 +17,9 @@
 - 识别 Fast/Priority、Batch/Flex 和超过 272k 输入 token 的长上下文倍率。
 - 提供桌面 App、本地网页仪表盘、离线 HTML、JSON 和终端摘要。
 - 未知模型明确标为「未计价」，不会套用相似模型价格猜测。
-- 支持 GPT-6 Astra 的 API 与订阅 credits 独立计价，包含缓存、长上下文与 Fast 倍率。
-- 内置多步逻辑压力题及鹈鹕作画对照题；可一键复制到 Codex 或打开 ChatGPT 预填题目。
+- 支持 GPT-6.1 Sol、GPT-6 Sol、GPT-6 Luna 与 Astra，包含缓存、长上下文、Fast 及 Astra Ultrafast 计价。
 
 所有扫描和计算都在本机完成。项目不读取 `auth.json`，不上传提示词，不连接第三方中转，也不使用 sub2api 一类非官方渠道。
-
-## 一键模型小测试
-
-点击仪表盘顶部的「能力试题」，选择一道题后：
-
-- **复制题目**：粘贴到 Codex 或你使用的模型客户端，选择模型后提交。
-- **打开 ChatGPT**：打开官方 ChatGPT 页面并预填固定题目，在目标页面选择 Astra 或其他可用模型后提交；不同账号的模型可用性不同。如果没有自动填入，使用复制按钮。
-- 展开评价要点，对照生成结果检查作画结构、动画连贯性、推理结果或指令遵循。比较模型时使用同一道题、新会话和相同的工具条件。
-
-逻辑题覆盖容错测试选择、不可逆身份合并、受限提问与谎言、固定方案纠错、多轮公开知识、隐藏换币与条件停止时间。每题都有 10 分评分要点、完整答案或有限验证程序；需要给出策略、逐轮候选集或下界证明，不能只猜最终答案。两个鹈鹕题保留为创意对照，不计入逻辑题成绩。
-
-逻辑题默认闭卷。已按 `gpt-5.6-sol` / `xhigh`、独立上下文、禁止工具的设置进行子代理盲测，逐题结果见 [题库与盲测记录](docs/BENCHMARKS.md)。程序核验用于检查标准答案，未提供给被测模型；一次答错不代表模型必然失败，算术失误与逻辑错误分开记录。开工具的结果应另记，不与闭卷直接比较。
-
-题库也内嵌在离线 HTML 中，复制和查看题目无需联网。打开 ChatGPT 才会跳转到外部网站，只携带选中的内置题目，不携带答案、盲测结果、本地报告或日志。提交后按目标客户端的规则消耗额度；工具不会自动发送请求或代选模型，也不会自动给模型打分。
 
 ## 下载桌面 App
 
@@ -122,11 +107,12 @@ codex-dollar {app,scan,report,serve,doctor,prices} --help
 ./run.ps1 scan --billing-mode subscription
 ```
 
-套餐名称只影响固定月费参考卡，不改变 token 费率：
+套餐名称只影响固定月费参考卡，不改变 token 费率。保留 `pro_5x` / `pro_20x` 参数以兼容旧命令，分别显示 Pro $100 / $200；新增 `pro_500`。通用日志标签 `pro` 无法区分三档价格，请按实际套餐显式指定：
 
 ```powershell
 ./run.ps1 app --plan plus
 ./run.ps1 app --plan pro_20x
+./run.ps1 app --plan pro_500
 ```
 
 ## 周额度监督
@@ -135,7 +121,7 @@ App 运行时每 60 秒重新扫描一次脱敏用量事件。检测到 7 天窗
 
 ```text
 整周 API 美元等价 ≈ 同期 token 的官方 API Standard 等价金额 ÷ 百分比变化 × 100
-整周 credits       ≈ 同期订阅 credits ÷ 百分比变化 × 100
+整周 credits 等价  ≈ 同期订阅 credits ÷ 百分比变化 × 100
 整周 token 等价    ≈ 同期 token 数 ÷ 百分比变化 × 100
 ```
 
@@ -158,7 +144,7 @@ App 运行时每 60 秒重新扫描一次脱敏用量事件。检测到 7 天窗
 |---|---|
 | API 标准模式等价 | 把所有已知模型用量按发生日期的官方 Standard API 价格折算；这是比较值，不等于订阅账单 |
 | API 预计费用 | 仅累计明确识别为 API Key 的调用，并应用日志中的服务等级倍率 |
-| 订阅 credits 估算 | 仅累计识别为订阅的调用，使用官方 Codex credits 表；它不会继承 API 降价 |
+| 订阅 credits 等价 | 仅累计识别为订阅的调用，按官方付费 credits 表折算；不是实际扣款，也不是套餐内已扣额度 |
 | 官方限额快照 | Codex 日志最近一次返回的窗口剩余百分比与重置时间；这是会员剩余额度最可靠的本地信号 |
 | 当前周额度推算 | 用当前周百分比变化与同期本地 token 反推的 100% 周额度 API 美元等价，并给出取整区间与可信度 |
 | 同套餐历史校准 | 汇总同一套餐最近的非重叠有效样本，减少当前样本只有 1–2% 时的剧烈波动 |
@@ -182,9 +168,11 @@ Plus、Pro、Business 的包含用量会受模型、上下文、任务复杂度�
 
 - `input_tokens` 在日志中包含缓存输入和写缓存输入，程序会先拆桶再计价。
 - `output_tokens` 已包含 reasoning token，不会再重复收费。
-- 超过 272k 输入 token 的 GPT-6 Astra / GPT-5.6/5.5/5.4 调用按官方长上下文规则计算。
-- API Fast/Priority 为 Standard 的 2×；Batch/Flex 为 0.5×。
-- 订阅 Fast 使用官方独立 credit 倍率，不套用 API 的 2× 规则。
+- 超过 272k 输入 token 的 GPT-6.1 Sol / GPT-6 系列 / GPT-5.6/5.5/5.4 调用按官方长上下文规则计算。
+- API Fast/Priority 为 Standard 的 2×；Batch/Flex 为 0.5×；Astra Ultrafast 自 2026-09-29 起为 6×。
+- 付费 credits：Fast 为 2×，Astra Ultrafast 为 6×。套餐内额度消耗分别为 2.5× / 8×，不能套入付费 credits。
+- v0.5.0 修正旧版把套餐内 Fast 倍率用于 credits 的口径错误，因此历史 Fast 的 credits 折算值也会修正；模型基础费率及 API 历史价格不变。官方未给出该口径说明的独立变价日，项目不编造变价日期。
+- 未知模型、服务等级或早于支持日期的组合明确保持未计价，不回退为标准价。
 - 地区处理加价、Web Search、容器、图像等无法从 token 日志可靠还原的项目不做推测。
 
 完整价格历史、更新步骤和来源约束见 [docs/PRICE_LEDGER.md](docs/PRICE_LEDGER.md)。
@@ -196,7 +184,7 @@ Plus、Pro、Business 的包含用量会受模型、上下文、任务复杂度�
 - 不包含提示词、回复正文、会话标题或工作区路径；
 - 不包含真实会话 UUID，只包含单向哈希后的短标识；
 - 不读取 API Key、登录凭据、SQLite 数据库或 `auth.json`；
-- 统计和报告不发起外部网络请求；本地服务只绑定 `127.0.0.1`，测试题仅在点击外链时打开官方 ChatGPT；
+- 统计和报告不发起外部网络请求；本地服务只绑定 `127.0.0.1`；
 - 价格来源由官方域名白名单校验，第三方价格源会让程序拒绝启动。
 
 更多信息见 [SECURITY.md](SECURITY.md)。离线 HTML/JSON 报告虽然已脱敏，仍可能暴露模型用量与消费习惯，分享前请自行评估。
@@ -206,7 +194,8 @@ Plus、Pro、Business 的包含用量会受模型、上下文、任务复杂度�
 ```bash
 python -m pip install -e .
 python -m unittest discover -s tests -v
-node --test tests/test_benchmarks.cjs
+node --test tests/test_dashboard.cjs
+python -m codex_meter prices --check
 python -m codex_meter doctor
 ```
 
@@ -228,7 +217,7 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed \
 - [Codex speed 与 credits 倍率](https://learn.chatgpt.com/docs/agent-configuration/speed)
 - [OpenAI Organization Usage API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage)
 
-最新补充核对：2026-09-22（GPT-6 Astra；其他历史条目保留原来源和区间）。项目不会自动从网页抓价；价格变化必须通过人工核对官方页面、补充历史区间和测试后合并，避免今天的降价错误改写昨天的使用记录。
+最新补充核对：2026-10-05（GPT-6.1 Sol、GPT-6 Sol/Luna、Astra Ultrafast 和 credits 倍率；其他模型基础费率保留原来源和区间）。项目不会自动从网页抓价；价格变化必须通过人工核对官方页面、补充历史区间和测试后合并，避免今天的降价错误改写昨天的使用记录。
 
 ## 许可证
 

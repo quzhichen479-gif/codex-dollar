@@ -11,6 +11,39 @@ from codex_meter.scanner import scan_codex
 
 
 class ReportTests(unittest.TestCase):
+    def test_new_models_and_ultrafast_flow_from_logs_to_report(self) -> None:
+        lines = []
+        for model, tier in (("gpt-6.1-sol", "default"), ("gpt-6-sol", "default"),
+                            ("gpt-6-luna", "default"), ("gpt-6-astra", "ultrafast")):
+            lines.append(json.dumps({"timestamp": "2026-10-05T00:00:00Z", "type": "turn_context",
+                                     "payload": {"model": model, "service_tier": tier}}))
+            lines.append(json.dumps({"timestamp": "2026-10-05T00:00:01Z", "type": "event_msg",
+                "payload": {"type": "token_count", "rate_limits": {"plan_type": "pro"},
+                            "info": {"last_token_usage": {"input_tokens": 100_000, "output_tokens": 10_000}}}}))
+        with tempfile.TemporaryDirectory() as folder:
+            home = Path(folder)
+            (home / "sessions").mkdir()
+            (home / "sessions" / "models.jsonl").write_text("\n".join(lines), encoding="utf-8")
+            scan = scan_codex(home)
+        report = build_report(scan, PriceBook.default(), plan_override="pro_500")
+        self.assertEqual(report["summary"]["calls"], 4)
+        self.assertAlmostEqual(report["summary"]["api_standard_equivalent_usd"], 2.115)
+        self.assertAlmostEqual(report["summary"]["subscription_credits_estimate"], 240.375)
+        self.assertEqual(report["summary"]["fast_calls"], 1)
+        self.assertEqual(report["summary"]["api_price_coverage"], 1)
+        self.assertEqual(report["summary"]["subscription_price_coverage"], 1)
+        self.assertEqual(report["current"]["plan_reference"]["monthly_usd"], 500)
+
+    def test_unpriced_api_tier_is_visible_despite_standard_equivalent_coverage(self) -> None:
+        report = build_report({"events": [{"session_id": "session-test", "model": "gpt-6.1-sol",
+            "timestamp": "2026-10-05T00:00:00Z", "service_tier": "ultrafast", "billing_mode": "api",
+            "tokens": {"input_tokens": 100, "total_tokens": 100}}]}, PriceBook.default())
+        self.assertEqual(report["summary"]["api_price_coverage"], 1)
+        self.assertEqual(report["summary"]["api_estimated_charge_usd"], 0)
+        self.assertEqual(report["summary"]["unpriced_api_charge_tokens"], 100)
+        self.assertEqual(report["summary"]["unpriced_subscription_call_tokens"], 0)
+        self.assertTrue(any("未计入费用合计" in note for note in report["caveats"]))
+
     def test_astra_log_to_report_uses_both_ledgers_without_counting_reasoning_twice(self) -> None:
         def row(kind: str, payload: dict) -> str:
             return json.dumps({"timestamp": "2026-09-22T00:00:00Z", "type": kind, "payload": payload})

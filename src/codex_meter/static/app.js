@@ -47,7 +47,7 @@
     const cards = [
       { index: "TOK", label: "总 Token", value: compact(t.total_tokens), unit: "tokens", foot: `${integer(s.calls)} 次模型调用 · ${integer(s.sessions)} 个脱敏会话` },
       { index: "API", label: "API 标准模式等价", value: money(s.api_standard_equivalent_usd), unit: "USD", foot: "按调用日期选历史价；不是会员账单", highlight: true },
-      { index: "SUB", label: "订阅 Credits 估算", value: credits(s.subscription_credits_estimate), unit: "credits", foot: "仅统计识别为订阅的调用；独立费率" },
+      { index: "SUB", label: "订阅 Credits 等价", value: credits(s.subscription_credits_estimate), unit: "credits", foot: "按付费 credits 折算；不代表实际扣款" },
       { index: "HIT", label: "缓存命中率", value: percent(s.cache_hit_ratio), unit: "of input", foot: `${compact(t.cached_input_tokens)} 个缓存输入 token` },
     ];
     $("#summaryGrid").innerHTML = cards.map(card => `
@@ -67,6 +67,10 @@
     if (coverage < 0.9999) {
       const names = Object.keys(report.unknown_pricing.api || {});
       showAlert(`有 ${integer(s.unpriced_api_tokens)} tokens 未计价：${names.join("、") || "未知模型"}。系统没有用相近模型价格猜测。`);
+    } else if (s.unpriced_api_charge_tokens) {
+      showAlert(`API 预计费用有 ${integer(s.unpriced_api_charge_tokens)} tokens 未计价：服务等级或日期没有对应费率，合计不完整。`);
+    } else if (s.unpriced_subscription_call_tokens) {
+      showAlert(`订阅 credits 等价有 ${integer(s.unpriced_subscription_call_tokens)} tokens 未计价，相关模型或服务等级缺少官方费率。`);
     } else if ((report.scan.failures || []).length) {
       showAlert(`有 ${report.scan.failures.length} 个日志文件无法读取；其内容未计入。`);
     } else {
@@ -278,9 +282,10 @@
     const creditRows = report.pricing_ledger.subscription || [];
     $("#subscriptionLedger").innerHTML = creditRows.map(row => {
       const r = row.credits;
+      const ultrafast = row.ultrafast ? `<br>Ultrafast ×${escapeHtml(row.ultrafast.multiplier)}` : "";
       return `<div class="ledger-row">
         <strong>${escapeHtml(row.model)}</strong>
-        <span>独立 credits<br>Fast ×${escapeHtml(row.fast_multiplier)}</span>
+        <span>付费 credits<br>Fast ×${escapeHtml(row.fast_multiplier)}${ultrafast}</span>
         <code>in ${r.input} · cache ${r.cached_input}<br>out ${r.output}</code>
       </div>`;
     }).join("");
@@ -341,73 +346,6 @@
     $("#retrievedAt").textContent = `价格表核对日期：API ${retrieved.api || "—"} · 订阅 ${retrieved.subscription || "—"}`;
   }
 
-  function initBenchmarks() {
-    const grid = $("#benchmarkGrid");
-    const catalog = window.CODEX_BENCHMARKS;
-    if (!grid) return;
-    if (!catalog || !catalog.questions.length) {
-      grid.innerHTML = `<p class="empty">题库未加载，请重新打开报告或刷新页面。</p>`;
-      return;
-    }
-    const status = $("#benchmarkStatus");
-    const logicCount = catalog.questions.filter(question => question.track === "logic").length;
-    $("#benchmarkCount").textContent = `${logicCount} 道逻辑题 + ${catalog.questions.length - logicCount} 道作画对照`;
-    const fallback = $("#benchmarkManualCopy");
-    const copyText = $("#benchmarkCopyText");
-    let lastCopyButton = null;
-    grid.innerHTML = catalog.questions.map((question, index) => `
-      <article class="benchmark-card" aria-labelledby="benchmark-${escapeHtml(question.id)}">
-        <div class="benchmark-card-top"><span>${String(index + 1).padStart(2, "0")}</span><span>${escapeHtml(question.category)}</span></div>
-        <h3 id="benchmark-${escapeHtml(question.id)}">${escapeHtml(question.title)}</h3>
-        <p class="benchmark-summary">${escapeHtml(question.summary)}</p>
-        <details class="benchmark-details benchmark-prompt">
-          <summary>查看完整题目</summary>
-          <pre>${escapeHtml(question.prompt)}</pre>
-        </details>
-        <div class="benchmark-actions">
-          <button class="button benchmark-copy" type="button" data-copy-benchmark="${escapeHtml(question.id)}" aria-label="复制题目：${escapeHtml(question.title)}">复制题目</button>
-          <a class="button ghost" href="${escapeHtml(catalog.chatgptUrl(question.prompt))}" target="_blank" rel="noopener noreferrer" aria-label="在 ChatGPT 新标签页打开：${escapeHtml(question.title)}">打开 ChatGPT <span aria-hidden="true">↗</span></a>
-        </div>
-        <details class="benchmark-details benchmark-rubric">
-          <summary>评价要点 / 参考答案</summary>
-          <p class="benchmark-calibration">${escapeHtml(question.calibration || "尚无模型实测记录")}</p>
-          <ul>${question.rubric.map(point => `<li>${escapeHtml(point)}</li>`).join("")}</ul>
-          <p class="benchmark-reference">${escapeHtml(question.reference)}</p>
-        </details>
-      </article>`).join("");
-
-    grid.addEventListener("click", async event => {
-      const button = event.target.closest("[data-copy-benchmark]");
-      if (!button) return;
-      const question = catalog.questions.find(item => item.id === button.dataset.copyBenchmark);
-      if (!question) return;
-      lastCopyButton = button;
-      button.disabled = true;
-      // Clear old feedback so repeated copies announce the new result as well.
-      status.textContent = "";
-      try {
-        if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error("Clipboard unavailable");
-        await navigator.clipboard.writeText(question.prompt);
-        fallback.classList.add("hidden");
-        status.textContent = `已复制「${question.title}」，可粘贴到 Codex 或 ChatGPT。`;
-      } catch {
-        copyText.value = question.prompt;
-        fallback.classList.remove("hidden");
-        status.textContent = `「${question.title}」未能自动复制，请手动复制下方已选中的题目。`;
-        copyText.focus();
-        copyText.select();
-        copyText.setSelectionRange(0, copyText.value.length);
-      } finally {
-        button.disabled = false;
-      }
-    });
-    $("#benchmarkCloseCopy").addEventListener("click", () => {
-      fallback.classList.add("hidden");
-      status.textContent = "手动复制区域已收起。";
-      if (lastCopyButton) lastCopyButton.focus();
-    });
-  }
-
   function render() {
     renderSummary();
     renderLimit();
@@ -459,6 +397,5 @@
       if (document.visibilityState === "visible") load(true);
     }, AUTO_REFRESH_MS);
   }
-  initBenchmarks();
   load(false);
 })();

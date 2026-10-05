@@ -73,7 +73,9 @@ def build_report(
     api_priced_tokens = 0
     credit_priced_tokens = 0
     unpriced_api_tokens = 0
+    unpriced_api_charge_tokens = 0
     unpriced_credit_tokens = 0
+    unpriced_subscription_call_tokens = 0
     long_context_calls = 0
     fast_calls = 0
 
@@ -88,7 +90,7 @@ def build_report(
         tier_counts[tier] += 1
         if plan_type:
             plan_counts[str(plan_type)] += 1
-        if tier in {"fast", "priority"}:
+        if tier in {"fast", "priority", "ultrafast"}:
             fast_calls += 1
 
         api_standard = pricebook.estimate_api(
@@ -120,6 +122,8 @@ def build_report(
             unknown_api[model] += token_count
         if billing == "api" and api_observed.priced:
             api_estimated_charge += api_observed.value
+        elif billing == "api":
+            unpriced_api_charge_tokens += token_count
         if credit.priced:
             all_credit_equivalent += credit.value
             credit_priced_tokens += token_count
@@ -128,6 +132,8 @@ def build_report(
         else:
             unpriced_credit_tokens += token_count
             unknown_credits[model] += token_count
+            if billing == "subscription":
+                unpriced_subscription_call_tokens += token_count
 
         date_key = parse_datetime(event["timestamp"]).date().isoformat()
         day = daily.setdefault(
@@ -256,7 +262,8 @@ def build_report(
 
     caveats = [
         "API 等价金额按每次调用发生日期选择官方历史单价；它不是订阅账单。",
-        "订阅内使用按独立的 Codex credits 表估算，会员月费保持固定，不继承 API 降价。",
+        "订阅调用按独立的付费 credits 表折算等价用量，不代表实际扣款或套餐内已扣额度；会员月费不继承 API 降价。",
+        "Fast 的付费 credits 按 2× 计算，套餐内额度消耗为 2.5×；Astra Ultrafast 分别为 6× 和 8×，不能混用。",
         "Plus/Pro/Business 的实际包含额度不是固定 token 包；精确剩余额度优先看日志中的官方限额百分比或 Codex /status。",
         "本地 token 日志不能完整反映 Web Search、容器、图像生成等按调用计费项目，也不推断区域处理 10% 加价。",
         "财务对账应以 OpenAI API Costs endpoint 或官方 Usage Dashboard/发票为准。",
@@ -270,6 +277,8 @@ def build_report(
         )
     if unknown_api:
         caveats.append("存在 API 未计价模型：" + "、".join(sorted(unknown_api)))
+    if unpriced_api_charge_tokens:
+        caveats.append(f"API 预计费用有 {unpriced_api_charge_tokens:,} tokens 缺少对应模型、服务等级或日期的官方费率，未计入费用合计。")
 
     return {
         "schema_version": 1,
@@ -294,7 +303,9 @@ def build_report(
             "api_price_coverage": round(coverage_api, 6),
             "subscription_price_coverage": round(coverage_credits, 6),
             "unpriced_api_tokens": unpriced_api_tokens,
+            "unpriced_api_charge_tokens": unpriced_api_charge_tokens,
             "unpriced_subscription_tokens": unpriced_credit_tokens,
+            "unpriced_subscription_call_tokens": unpriced_subscription_call_tokens,
             "long_context_calls": long_context_calls,
             "fast_calls": fast_calls,
             "billing_modes": dict(billing_counts),

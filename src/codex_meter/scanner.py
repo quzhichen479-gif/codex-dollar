@@ -144,14 +144,16 @@ def scan_session_file(path: Path, *, billing_mode: str = "auto") -> dict[str, An
                 candidate = payload.get("model")
                 if candidate:
                     current_model = str(candidate).strip().lower()
+                if "service_tier" in payload:
+                    current_tier = str(payload["service_tier"] or "default").strip().lower()
                 continue
 
             if top_type == "event_msg" and payload.get("type") == "thread_settings_applied":
                 settings = payload.get("thread_settings") if isinstance(payload.get("thread_settings"), dict) else {}
                 if settings.get("model"):
                     current_model = str(settings["model"]).strip().lower()
-                if settings.get("service_tier"):
-                    current_tier = str(settings["service_tier"]).strip().lower()
+                if "service_tier" in settings:
+                    current_tier = str(settings["service_tier"] or "default").strip().lower()
                 continue
 
             if top_type != "event_msg" or payload.get("type") != "token_count":

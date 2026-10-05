@@ -181,7 +181,18 @@ class PriceBook:
 
         normalized_tier = str(service_tier or "default").strip().lower()
         tier_multipliers = rules["service_tier_multipliers"]
-        multiplier = float(tier_multipliers.get(normalized_tier, 1.0))
+        special_tier = rules.get("model_service_tiers", {}).get(canonical, {}).get(normalized_tier)
+        if special_tier and when >= parse_datetime(special_tier["effective_from"]):
+            multiplier = float(special_tier["multiplier"])
+        elif normalized_tier == "auto":
+            multiplier = 1.0
+        elif normalized_tier in tier_multipliers:
+            multiplier = float(tier_multipliers[normalized_tier])
+        else:
+            return self._unpriced(
+                model, canonical, "USD", normalized_tier,
+                "No official API rate for this model, service tier and usage date.",
+            )
         unit = float(self.api["unit_tokens"])
         components = {
             "input": split["input"] * rates["input"] / unit * multiplier,
@@ -234,9 +245,19 @@ class PriceBook:
         split = split_input_tokens(tokens)
         rates = {key: float(value) for key, value in record["credits"].items()}
         normalized_tier = str(service_tier or "default").strip().lower()
-        multiplier = 1.0
-        if normalized_tier in {"priority", "fast"}:
-            multiplier = float(self.subscription.get("fast_multipliers", {}).get(canonical, 1.0))
+        special_tier = self.subscription.get("model_service_tiers", {}).get(canonical, {}).get(normalized_tier)
+        if special_tier and when >= parse_datetime(special_tier["effective_from"]):
+            multiplier = float(special_tier["multiplier"])
+        elif normalized_tier in {"default", "standard", "auto"}:
+            multiplier = 1.0
+        elif normalized_tier in {"priority", "fast"} and canonical in self.subscription.get("fast_multipliers", {}):
+            # Purchased-credit billing is separate from included-limit usage.
+            multiplier = float(self.subscription["fast_multipliers"][canonical])
+        else:
+            return self._unpriced(
+                model, canonical, "credits", normalized_tier,
+                "No official paid-credit rate for this model, service tier and usage date.",
+            )
         unit = float(self.subscription["unit_tokens"])
 
         # The official credit card has no cache-write column.  Keep this rule
@@ -358,6 +379,7 @@ class PriceBook:
                 "effective_from": record.get("effective_from"),
                 "credits": record.get("credits"),
                 "fast_multiplier": self.subscription.get("fast_multipliers", {}).get(model, 1.0),
+                "ultrafast": self.subscription.get("model_service_tiers", {}).get(model, {}).get("ultrafast"),
             }
             for model, record in self.subscription.get("models", {}).items()
         ]
@@ -371,4 +393,6 @@ class PriceBook:
             "plans": self.subscription.get("plans", {}),
             "separation_policy": self.subscription.get("separation_policy"),
             "cache_write_policy": self.subscription.get("cache_write_policy"),
+            "credit_estimate_policy": self.subscription.get("credit_estimate_policy"),
+            "included_usage_multipliers": self.subscription.get("included_usage_multipliers", {}),
         }

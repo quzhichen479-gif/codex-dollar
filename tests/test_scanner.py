@@ -90,6 +90,29 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(classify_billing("mystery"), "unknown")
         self.assertEqual(classify_billing("mystery", "api"), "api")
 
+    def test_service_tier_follows_turn_context_and_explicit_resets(self) -> None:
+        lines = []
+        for tier in ("fast", "ultrafast", None):
+            lines.append(row("2026-10-05T00:00:00Z", "turn_context",
+                             {"model": "gpt-6-astra", "service_tier": tier}))
+            lines.append(row("2026-10-05T00:00:01Z", "event_msg", {
+                "type": "token_count", "info": {"last_token_usage": {"input_tokens": 100}},
+            }))
+        lines.extend([
+            row("2026-10-05T00:01:00Z", "event_msg", {"type": "thread_settings_applied",
+                "thread_settings": {"service_tier": "fast"}}),
+            row("2026-10-05T00:01:01Z", "event_msg", {"type": "thread_settings_applied",
+                "thread_settings": {"service_tier": None}}),
+            row("2026-10-05T00:01:02Z", "event_msg", {"type": "token_count",
+                "info": {"last_token_usage": {"input_tokens": 100}}}),
+        ])
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "tiers.jsonl"
+            path.write_text("\n".join(lines), encoding="utf-8")
+            events = scan_session_file(path)["events"]
+        self.assertEqual([event["service_tier"] for event in events],
+                         ["fast", "ultrafast", "default", "default"])
+
 
 if __name__ == "__main__":
     unittest.main()

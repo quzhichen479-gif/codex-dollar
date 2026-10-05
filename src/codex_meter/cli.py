@@ -22,6 +22,7 @@ PLAN_CHOICES = (
     "plus",
     "pro_5x",
     "pro_20x",
+    "pro_500",
     "business_annual",
     "business_monthly",
 )
@@ -93,7 +94,9 @@ def _print_summary(report: dict[str, Any]) -> None:
     print(f"    缓存命中: {_format_int(tokens['cached_input_tokens'])}")
     print(f"  输出 token: {_format_int(tokens['output_tokens'])}")
     print(f"  API 标准模式等价: ${summary['api_standard_equivalent_usd']:.6f}")
-    print(f"  订阅内 credits 估算: {summary['subscription_credits_estimate']:.4f}")
+    print(f"  订阅 credits 等价（非实际扣款）: {summary['subscription_credits_estimate']:.4f}")
+    if summary.get("unpriced_api_charge_tokens"):
+        print(f"  API 预计费用未计价 token: {_format_int(summary['unpriced_api_charge_tokens'])}")
     print(f"  API 价格覆盖率: {summary['api_price_coverage'] * 100:.2f}%")
     if plan:
         print(f"  当前套餐参考: {plan['label']} · ${plan['monthly_usd']:.2f}/月 ({plan['confidence']})")
@@ -193,12 +196,14 @@ def command_prices(args: argparse.Namespace) -> int:
             f"  {row['model']:<19} {row['effective_from'][:10]} → {end[:10] if end != '现在' else end:<10} "
             f"in {rates['input']:g} / cache {rates['cached_input']:g} / write {rates['cache_write']:g} / out {rates['output']:g}"
         )
-    print("\n订阅 credits（credits / 1M tokens；不继承 API 降价）")
+    print("\n订阅付费 credits 等价（credits / 1M tokens；不代表套餐内已扣额度）")
     for row in ledger["subscription"]:
         rates = row["credits"]
+        ultra = row.get("ultrafast")
+        extra = f" / ultrafast ×{ultra['multiplier']:g}" if ultra else ""
         print(
             f"  {row['model']:<19} in {rates['input']:g} / cache {rates['cached_input']:g} / out {rates['output']:g} "
-            f"· fast ×{row['fast_multiplier']:g}"
+            f"· fast ×{row['fast_multiplier']:g}{extra}"
         )
     return 0
 

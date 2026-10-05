@@ -36,7 +36,7 @@ def render_standalone(report: dict[str, Any]) -> str:
         f"<script>window.__CODEX_METER_REPORT__={_json_for_script(report)};</script>",
     )
     scripts = []
-    for name in ("benchmarks.js", "app.js"):
+    for name in ("app.js",):
         js = (STATIC_DIR / name).read_text(encoding="utf-8")
         scripts.append(f"<script>\n{js}\n</script>")
         html = html.replace(
@@ -94,7 +94,7 @@ def _handler_factory(state: ReportState) -> type[BaseHTTPRequestHandler]:
             if parsed.path == "/assets/styles.css":
                 self._send((STATIC_DIR / "styles.css").read_bytes(), "text/css; charset=utf-8")
                 return
-            if parsed.path in {"/assets/app.js", "/assets/benchmarks.js"}:
+            if parsed.path == "/assets/app.js":
                 self._send((STATIC_DIR / Path(parsed.path).name).read_bytes(), "text/javascript; charset=utf-8")
                 return
             if parsed.path == "/api/report":
