@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -48,16 +49,30 @@ def render_standalone(report: dict[str, Any]) -> str:
 
 
 class ReportState:
-    def __init__(self, builder: Callable[[], dict[str, Any]]):
+    def __init__(self, builder: Callable[[], dict[str, Any]],
+                 live_builder: Callable[[], dict[str, Any]] | None = None):
         self._builder = builder
         self._lock = threading.Lock()
         self._report = builder()
+        self._live_builder = live_builder
+        self._live_lock = threading.Lock()
+        self._live: dict[str, Any] | None = None
+        self._live_at = 0.0
 
     def get(self, refresh: bool = False) -> dict[str, Any]:
         if refresh:
             with self._lock:
                 self._report = self._builder()
         return self._report
+
+    def live(self) -> dict[str, Any]:
+        if self._live_builder is None:
+            return {"error": "live_unavailable"}
+        with self._live_lock:
+            if self._live is None or time.monotonic() - self._live_at >= 1.0:
+                self._live = self._live_builder()
+                self._live_at = time.monotonic()
+            return self._live
 
 
 def _handler_factory(state: ReportState) -> type[BaseHTTPRequestHandler]:
@@ -91,16 +106,23 @@ def _handler_factory(state: ReportState) -> type[BaseHTTPRequestHandler]:
                 body = (STATIC_DIR / "index.html").read_bytes()
                 self._send(body, "text/html; charset=utf-8")
                 return
+            if parsed.path == "/widget":
+                self._send((STATIC_DIR / "widget.html").read_bytes(), "text/html; charset=utf-8")
+                return
+            if parsed.path in {"/assets/widget.js", "/assets/widget.css"}:
+                content_type = "text/javascript" if parsed.path.endswith(".js") else "text/css"
+                self._send((STATIC_DIR / Path(parsed.path).name).read_bytes(), content_type + "; charset=utf-8")
+                return
             if parsed.path == "/assets/styles.css":
                 self._send((STATIC_DIR / "styles.css").read_bytes(), "text/css; charset=utf-8")
                 return
             if parsed.path == "/assets/app.js":
                 self._send((STATIC_DIR / Path(parsed.path).name).read_bytes(), "text/javascript; charset=utf-8")
                 return
-            if parsed.path == "/api/report":
+            if parsed.path in {"/api/report", "/api/live"}:
                 query = parse_qs(parsed.query)
                 try:
-                    report = state.get(refresh=query.get("refresh") == ["1"])
+                    report = state.live() if parsed.path == "/api/live" else state.get(refresh=query.get("refresh") == ["1"])
                     body = json.dumps(report, ensure_ascii=False).encode("utf-8")
                     self._send(body, "application/json; charset=utf-8")
                 except Exception as exc:  # keep dashboard alive without leaking paths/content
@@ -116,9 +138,10 @@ def _handler_factory(state: ReportState) -> type[BaseHTTPRequestHandler]:
 
 
 def create_dashboard_server(
-    builder: Callable[[], dict[str, Any]], *, port: int = 8765
+    builder: Callable[[], dict[str, Any]], *, port: int = 8765,
+    live_builder: Callable[[], dict[str, Any]] | None = None,
 ) -> ThreadingHTTPServer:
-    state = ReportState(builder)
+    state = ReportState(builder, live_builder)
     return ThreadingHTTPServer(("127.0.0.1", int(port)), _handler_factory(state))
 
 
@@ -127,9 +150,11 @@ def serve_dashboard(
     *,
     port: int = 8765,
     open_browser: bool = False,
+    live_builder: Callable[[], dict[str, Any]] | None = None,
+    start_path: str = "/",
 ) -> None:
-    server = create_dashboard_server(builder, port=port)
-    url = f"http://127.0.0.1:{server.server_port}/"
+    server = create_dashboard_server(builder, port=port, live_builder=live_builder)
+    url = f"http://127.0.0.1:{server.server_port}{start_path}"
     print(f"Codex Token Meter: {url}")
     print("仅监听本机回环地址；按 Ctrl+C 停止。")
     if open_browser:

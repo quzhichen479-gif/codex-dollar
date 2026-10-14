@@ -17,6 +17,8 @@ Codex Dollar 维护两份物理分离的数据文件：
 | GPT-6 Sol | 2026-09-22 → 当前 | 2 / 0.2 / 2.5 / 10 |
 | GPT-6 Luna | 2026-09-22 → 当前 | 0.1 / 0.01 / 0.125 / 0.5 |
 | GPT-6 Astra | 2026-09-03 → 当前 | 10 / 1 / 12.5 / 50 |
+| GPT-Rosalind-Research | 2026-10-05 → 当前 | 5 / 0.5 / 5 / 25 |
+| GPT-5.6 Cyber | 2026-10-14（首次核实覆盖日）→ 当前 | 12.5 / 1.25 / 15.625 / 75 |
 | GPT-5.6 Sol | 2026-07-09 → 2026-08-21 | 5 / 0.5 / 6.25 / 30 |
 | GPT-5.6 Sol | 2026-08-21 → 当前 | 4 / 0.4 / 5 / 20 |
 | GPT-5.6 Terra | 2026-07-09 → 2026-07-30 | 2.5 / 0.25 / 3.125 / 15 |
@@ -40,6 +42,8 @@ Astra 的发布日期由官方 API Changelog 确认为 2026-09-03，费率由模
 | GPT-6 Sol | 50 / 5 / 250 | 2× |
 | GPT-6 Luna | 2.5 / 0.25 / 12.5 | 2× |
 | GPT-6 Astra | 250 / 25 / 1,250 | 2× |
+| GPT-Rosalind-Research | 125 / 12.5 / 625 | 未核实 |
+| GPT-5.6 Cyber（Daybreak Red） | 312.5 / 31.25 / 1875 | 未核实 |
 | GPT-5.6 Sol | 100 / 10 / 500 | 2× |
 | GPT-5.6 Terra | 50 / 5 / 300 | 2× |
 | GPT-5.6 Luna | 5 / 0.5 / 30 | 2× |
@@ -53,6 +57,14 @@ Astra 的发布日期由官方 API Changelog 确认为 2026-09-03，费率由模
 
 2026-10-05 核对时，官方明确区分 Fast 的付费 credits 2× 与套餐内额度 2.5×。v0.5.0 将旧版混入 credits 的 2.5× 修正为 2×，包括重新扫描历史调用时的估算。这是计价口径纠错，不声称发生了订阅降价；官方未给出独立变价日，项目不编造切换日期。原有 API 历史区间和订阅基础 token 费率保持不变。
 
+## 2026-10-14 补充核对
+
+- GPT-6.1 Sol Ultrafast：API 和订阅的官方发布记录均为 **2026-10-08**。API 短上下文 input / cached / write / output 为 **12 / 0.6 / 15 / 60 USD/1M**；长上下文为 **24 / 1.2 / 30 / 90**。付费 credits 为 Standard 的 6×，套餐内额度为 8×。沿用 UTC 当日零点作为日期粒度边界，不声称获知精确上线时刻。
+- GPT-Rosalind-Research：API 官方明确从 **2026-10-05** 开始计费，且没有单独 cache-write 加价；写缓存输入按普通 input 费率处理。订阅表虽已公布 125 / 12.5 / 625 credits，但未确认该费率的历史起点，因此订阅账本仅从 **2026-10-14 首次核实日**覆盖，不照搬 API 生效日。
+- GPT-5.6 Cyber：API 和订阅独立核实当前 Standard 价格，均仅从 **2026-10-14 首次核实日**覆盖。该日期不是模型发布日期或已知变价日。Daybreak Red 与该模型的对应关系以官方 Daybreak 指南为据，不推测别名。两种专用模型均未核实 Fast/Ultrafast/Batch/Flex 费率，相关用量保持未计价。
+- GPT-5.5 于 **2026-10-14** 退出 ChatGPT/Work/Codex。保留历史 credits 费率并标注状态；API 不受影响。退役状态不用于抹去日志用量。
+- GPT-6.1 Sol、GPT-6 Luna、Astra 的基础价格及 Fast/Ultrafast 双计费口径复核不变。未更改旧 API 生效区间。
+
 ## 长上下文与服务等级
 
 对声明支持长上下文差异化价格的模型，当单次调用输入超过 272,000 token：
@@ -61,13 +73,13 @@ Astra 的发布日期由官方 API Changelog 确认为 2026-09-03，费率由模
 - output 费率乘 1.5；
 - 阈值按 `input_tokens` 判断，其中包含缓存和写缓存输入。
 
-| 口径 | Standard | Fast / Priority | Astra Ultrafast |
+| 口径 | Standard | Fast / Priority | Astra / Sol Ultrafast |
 |---|---:|---:|---:|
 | API 美元 | 1× | 2× | 6× |
 | 付费 credits | 1× | 2× | 6× |
 | 套餐内额度消耗（仅供说明） | 1× | 2.5× | 8× |
 
-API Batch/Flex 为 0.5×。Ultrafast 仅支持 Astra，从官方 2026-09-29 发布日开始匹配；此前或其他模型的 Ultrafast 保持未计价。API 的 Ultrafast 可以叠加官方长上下文倍率，订阅 credits 不叠加。模型、服务等级或日期不受账本支持时不回退为 Standard。
+已支持的通用模型 API Batch/Flex 为 0.5×。Ultrafast 支持 Astra（2026-09-29 起）和 GPT-6.1 Sol（2026-10-08 起）；各自支持日期之前及其他模型的 Ultrafast 保持未计价。API 的 Ultrafast 可以叠加官方长上下文倍率，订阅 credits 不叠加。专用模型仅覆盖已核实的 Standard 模式，不能直接套用通用倍率。模型、服务等级或日期不受账本支持时不回退为 Standard。
 
 新增 Pro $500 月费参考和 `--plan pro_500`。日志的通用 `pro` 无法区分 $100 / $200 / $500，因此不再自动显示成 $200；用户可显式选择。套餐价格不会改变 token 费率或虚构固定 token 包。
 
@@ -110,7 +122,9 @@ API 是按 token 与部分工具调用计费的独立产品。ChatGPT/Codex 会�
 - [gpt-6.1-sol model pricing](https://developers.openai.com/api/docs/models/gpt-6.1-sol)
 - [gpt-6-sol model pricing](https://developers.openai.com/api/docs/models/gpt-6-sol)
 - [gpt-6-luna model pricing](https://developers.openai.com/api/docs/models/gpt-6-luna)
-- [Astra Ultrafast API](https://developers.openai.com/api/docs/guides/ultrafast-mode)
+- [Ultrafast API](https://developers.openai.com/api/docs/guides/ultrafast-mode)
+- [ChatGPT / Codex 发布记录](https://learn.chatgpt.com/docs/changelog)
+- [Daybreak 模型与访问计划](https://developers.openai.com/api/docs/guides/daybreak)
 - [DevDay 2026 发布说明](https://learn.chatgpt.com/docs/whats-new/devday-2026)
 
 本轮核对日期：2026-10-05。Astra 基础 token 费率与 2026-09-22 的记录一致；更早模型的基础费率与历史区间沿用原账本。

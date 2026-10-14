@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+import math
 from datetime import datetime, timezone
 from typing import Any
 
@@ -29,7 +30,8 @@ def _window_summary(window: Any) -> dict[str, Any] | None:
         return None
     used = window.get("used_percent")
     try:
-        used_value = max(0.0, min(100.0, float(used))) if used is not None else None
+        used_value = float(used) if used is not None else None
+        used_value = max(0.0, min(100.0, used_value)) if used_value is not None and math.isfinite(used_value) else None
     except (TypeError, ValueError):
         used_value = None
     reset_value = window.get("resets_at")
@@ -263,7 +265,7 @@ def build_report(
     caveats = [
         "API 等价金额按每次调用发生日期选择官方历史单价；它不是订阅账单。",
         "订阅调用按独立的付费 credits 表折算等价用量，不代表实际扣款或套餐内已扣额度；会员月费不继承 API 降价。",
-        "Fast 的付费 credits 按 2× 计算，套餐内额度消耗为 2.5×；Astra Ultrafast 分别为 6× 和 8×，不能混用。",
+        "Fast 的付费 credits 按 2× 计算，套餐内额度消耗为 2.5×；Astra / Sol Ultrafast 分别为 6× 和 8×，不能混用。",
         "Plus/Pro/Business 的实际包含额度不是固定 token 包；精确剩余额度优先看日志中的官方限额百分比或 Codex /status。",
         "本地 token 日志不能完整反映 Web Search、容器、图像生成等按调用计费项目，也不推断区域处理 10% 加价。",
         "财务对账应以 OpenAI API Costs endpoint 或官方 Usage Dashboard/发票为准。",

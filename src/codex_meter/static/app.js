@@ -272,10 +272,11 @@
       const r = row.rates;
       const nextSameModel = list.find((candidate, j) => j > index && candidate.model === row.model);
       const cut = nextSameModel ? `<span class="price-cut">后续降价</span>` : `<span>当前/最新</span>`;
+      const tier = row.ultrafast ? `<br>Ultrafast ×${escapeHtml(row.ultrafast.multiplier)} · ${escapeHtml(row.ultrafast.effective_from.slice(0, 10))} 起` : "";
       return `<div class="ledger-row">
         <strong>${escapeHtml(row.model)}</strong>
         <span>${escapeHtml(row.effective_from.slice(0, 10))}<br>${cut}</span>
-        <code>in ${r.input} · cache ${r.cached_input}<br>out ${r.output}</code>
+        <code>in ${r.input} · cache ${r.cached_input}<br>out ${r.output}${tier}</code>
       </div>`;
     }).join("");
 
@@ -283,9 +284,11 @@
     $("#subscriptionLedger").innerHTML = creditRows.map(row => {
       const r = row.credits;
       const ultrafast = row.ultrafast ? `<br>Ultrafast ×${escapeHtml(row.ultrafast.multiplier)}` : "";
+      const fast = row.fast_multiplier ? `Fast ×${escapeHtml(row.fast_multiplier)}` : "仅 Standard 已核实";
+      const retired = row.retired_from_subscription_at ? `<br><small>已退出订阅 · 历史费率</small>` : "";
       return `<div class="ledger-row">
-        <strong>${escapeHtml(row.model)}</strong>
-        <span>付费 credits<br>Fast ×${escapeHtml(row.fast_multiplier)}${ultrafast}</span>
+        <strong>${escapeHtml(row.model)}${retired}</strong>
+        <span>付费 credits<br>${fast}${ultrafast}</span>
         <code>in ${r.input} · cache ${r.cached_input}<br>out ${r.output}</code>
       </div>`;
     }).join("");
@@ -392,6 +395,21 @@
   }));
   $("#sessionSearch").addEventListener("input", () => report && renderSessions());
   $("#refreshButton").addEventListener("click", () => !embedded && load(true));
+  const widgetButton = $("#widgetButton");
+  widgetButton.disabled = embedded;
+  widgetButton.title = embedded ? "离线报告不提供实时悬窗" : "桌面版置顶悬窗；浏览器版打开独立小窗口";
+  widgetButton.addEventListener("click", async () => {
+    if (embedded) return;
+    try {
+      if (window.pywebview?.api?.open_widget) {
+        await window.pywebview.api.open_widget();
+      } else if (!window.open("/widget", "codex-dollar-widget", "popup,width=380,height=550")) {
+        showAlert("悬窗被浏览器拦截，请允许此本地页面弹出窗口。", "error");
+      }
+    } catch {
+      showAlert("悬窗启动失败，请重试或使用 app --widget。", "error");
+    }
+  });
   if (!embedded) {
     window.setInterval(() => {
       if (document.visibilityState === "visible") load(true);

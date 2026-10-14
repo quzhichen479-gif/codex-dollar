@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
+import threading
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -123,19 +125,26 @@ def scan_session_file(path: Path, *, billing_mode: str = "auto") -> dict[str, An
     previous_total: dict[str, int] | None = None
     events: list[dict[str, Any]] = []
     rate_snapshots: list[dict[str, Any]] = []
+    turns: list[dict[str, Any]] = []
+    active_turn: dict[str, Any] | None = None
     malformed = 0
     relevant_lines = 0
     file_time = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
 
     with path.open("rb") as handle:
         for raw_line in handle:
-            if not any(marker in raw_line for marker in (b"turn_context", b"thread_settings_applied", b"token_count")):
+            if not any(marker in raw_line for marker in (
+                b"turn_context", b"thread_settings_applied", b"token_count",
+                b'"task_started"', b'"task_complete"', b'"turn_aborted"',
+            )):
                 continue
             relevant_lines += 1
             try:
                 record = json.loads(raw_line)
             except (json.JSONDecodeError, UnicodeDecodeError, TypeError):
                 malformed += 1
+                continue
+            if not isinstance(record, dict):
                 continue
             top_type = record.get("type")
             payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
@@ -156,6 +165,41 @@ def scan_session_file(path: Path, *, billing_mode: str = "auto") -> dict[str, An
                     current_tier = str(settings["service_tier"] or "default").strip().lower()
                 continue
 
+            if top_type == "event_msg" and payload.get("type") == "task_started":
+                active_turn = {
+                    "turn_id": payload.get("turn_id"),
+                    "output_tokens": 0,
+                    "complete_usage": True,
+                }
+                continue
+
+            if top_type == "event_msg" and payload.get("type") == "turn_aborted":
+                active_turn = None
+                continue
+
+            if top_type == "event_msg" and payload.get("type") == "task_complete":
+                # Only retain numeric timing fields, never last_agent_message or IDs.
+                if active_turn and active_turn["turn_id"] == payload.get("turn_id"):
+                    def duration(name: str) -> float | None:
+                        try:
+                            value = float(payload[name])
+                            return value if math.isfinite(value) and value >= 0 else None
+                        except (KeyError, TypeError, ValueError, OverflowError):
+                            return None
+
+                    elapsed = duration("duration_ms")
+                    ttft = duration("time_to_first_token_ms")
+                    if elapsed and active_turn["complete_usage"]:
+                        turns.append({
+                            "timestamp": _iso_or_fallback(record.get("timestamp"), file_time),
+                            "duration_ms": elapsed,
+                            "time_to_first_token_ms": ttft if ttft is not None and ttft <= elapsed else None,
+                            "output_tokens": active_turn["output_tokens"],
+                            "model": current_model,
+                        })
+                active_turn = None
+                continue
+
             if top_type != "event_msg" or payload.get("type") != "token_count":
                 continue
 
@@ -174,12 +218,16 @@ def scan_session_file(path: Path, *, billing_mode: str = "auto") -> dict[str, An
             last = _token_dict(info.get("last_token_usage"))
             if isinstance(total_raw, dict):
                 total = _token_dict(total_raw)
+                if active_turn and previous_total is None and total["output_tokens"] != last["output_tokens"]:
+                    active_turn["complete_usage"] = False
                 usage = _delta_tokens(total, previous_total, last)
                 previous_total = total
             else:
                 usage = last
             if usage["input_tokens"] == 0 and usage["output_tokens"] == 0:
                 continue
+            if active_turn:
+                active_turn["output_tokens"] += usage["output_tokens"]
 
             events.append(
                 {
@@ -201,6 +249,7 @@ def scan_session_file(path: Path, *, billing_mode: str = "auto") -> dict[str, An
         "source": "archived" if "archived_sessions" in {part.lower() for part in path.parts} else "active",
         "events": events,
         "rate_snapshots": rate_snapshots,
+        "turns": turns,
         "token_total": token_total,
         "malformed_relevant_lines": malformed,
         "relevant_lines": relevant_lines,
@@ -234,6 +283,7 @@ def scan_codex(
     *,
     include_archived: bool = True,
     billing_mode: str = "auto",
+    cache: dict[Path, tuple[tuple[int, ...], dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
     home = (codex_home or default_codex_home()).expanduser().resolve()
     files = discover_session_files(home, include_archived=include_archived)
@@ -242,22 +292,38 @@ def scan_codex(
 
     for path in files:
         try:
-            session = scan_session_file(path, billing_mode=billing_mode)
+            stat = path.stat()
+            key = (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+            cached = cache.get(path) if cache is not None else None
+            if cached and cached[0] == key:
+                session = cached[1]
+            else:
+                session = scan_session_file(path, billing_mode=billing_mode)
+                if cache is not None:
+                    cache[path] = (key, session)
         except (OSError, PermissionError) as exc:
             failures.append(
                 {"session": _anonymous_session_id(path), "error": type(exc).__name__}
             )
             continue
         existing = by_session.get(session["id"])
-        if existing is None or session["token_total"] > existing["token_total"]:
+        if existing is None or (session["token_total"], session["modified_at"]) > (existing["token_total"], existing["modified_at"]):
             by_session[session["id"]] = session
+
+    if cache is not None:
+        present = set(files)
+        for path in list(cache):
+            if path not in present:
+                del cache[path]
 
     events: list[dict[str, Any]] = []
     rate_snapshots: list[dict[str, Any]] = []
+    turns: list[dict[str, Any]] = []
     malformed = 0
     for session in by_session.values():
         events.extend(session["events"])
         rate_snapshots.extend(session["rate_snapshots"])
+        turns.extend(session.get("turns", []))
         malformed += session["malformed_relevant_lines"]
     events.sort(key=lambda item: item["timestamp"])
     rate_snapshots.sort(key=lambda item: item["timestamp"])
@@ -269,6 +335,7 @@ def scan_codex(
         "sessions": list(by_session.values()),
         "events": events,
         "rate_snapshots": rate_snapshots,
+        "turns": turns,
         "latest_rate_limit": rate_snapshots[-1] if rate_snapshots else None,
         "plan_type_counts": dict(plan_counts),
         "malformed_relevant_lines": malformed,
@@ -280,6 +347,27 @@ def scan_codex(
             "network_used": False,
         },
     }
+
+
+class CachedScanner:
+    """Reuse sanitized results for unchanged files; never cache message content.
+
+    Changed files are reread so truncation, partial writes, counters and model
+    changes follow exactly the same parser as a one-shot scan.
+    """
+
+    def __init__(self, codex_home: Path | None = None, *, include_archived: bool = True,
+                 billing_mode: str = "auto"):
+        self.home = codex_home
+        self.include_archived = include_archived
+        self.billing_mode = billing_mode
+        self._cache: dict[Path, tuple[tuple[int, ...], dict[str, Any]]] = {}
+        self._lock = threading.Lock()
+
+    def scan(self) -> dict[str, Any]:
+        with self._lock:
+            return scan_codex(self.home, include_archived=self.include_archived,
+                              billing_mode=self.billing_mode, cache=self._cache)
 
 
 def filter_events(

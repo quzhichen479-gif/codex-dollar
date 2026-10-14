@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Codex Dollar · 悬窗</title>
+  <link rel="stylesheet" href="/assets/widget.css">
+  <script src="/assets/widget.js" defer></script>
+</head>
+<body>
+  <main class="meter">
+    <header>
+      <span class="brand"><b>C</b> Codex Dollar <small>LIVE</small></span>
+      <button id="pinButton" type="button" hidden aria-pressed="true" title="切换桌面置顶">已置顶</button>
+      <a id="dashboardLink" href="/" target="_blank" rel="noopener" title="打开完整仪表盘" aria-label="打开完整仪表盘">↗</a>
+    </header>
+    <div class="connection"><span id="stateDot" class="dot"></span><span id="statusText" role="status">正在连接本地日志…</span></div>
+    <section class="speed" aria-label="近 60 秒日志输出速率">
+      <div class="eyebrow">输出速率 <span>近 60 秒 · 日志统计</span></div>
+      <div class="speed-number"><strong id="outputSpeed">—</strong><span>token/s</span></div>
+      <div class="speed-meta"><span>输入 <b id="inputSpeed">—</b> /s</span><span id="sessionCount">本机全部会话</span></div>
+      <p id="modelName" class="model">等待用量记录</p>
+    </section>
+    <section class="limits" aria-label="官方额度快照">
+      <div class="section-title"><span>额度剩余</span><span id="planLabel">官方快照</span></div>
+      <div class="quota-row"><label id="primaryLabel" for="primaryBar">短周期</label><strong id="primaryValue">—</strong></div>
+      <progress id="primaryBar" max="100" value="0" aria-label="短周期剩余额度"></progress>
+      <div id="primaryReset" class="reset">尚无快照</div>
+      <div class="quota-row"><label id="secondaryLabel" for="secondaryBar">周额度</label><strong id="secondaryValue">—</strong></div>
+      <progress id="secondaryBar" max="100" value="0" aria-label="周额度剩余"></progress>
+      <div id="secondaryReset" class="reset">尚无快照</div>
+      <p id="quotaStatus" class="quota-status">等待官方额度信息</p>
+      <p id="balance" class="balance" hidden></p>
+    </section>
+    <section class="turn" aria-label="最近完成回合">
+      <div><span>回合平均</span><strong id="turnSpeed">—</strong></div>
+      <div><span>首 token 延迟</span><strong id="firstToken">—</strong></div>
+    </section>
+    <p class="explanation">回合平均包含等待与工具耗时；输出包含推理 token。以上均非精确流式生成速度。</p>
+    <footer><span id="updatedAt">2 秒自动刷新</span><button id="refreshButton" type="button">刷新</button></footer>
+    <p id="windowHint" class="window-hint">浏览器小窗 · 置顶请使用桌面版</p>
+  </main>
+</body>
+</html>

@@ -11,7 +11,8 @@ from typing import Any
 from . import __version__
 from .pricing import PriceBook, parse_datetime
 from .report import build_report
-from .scanner import default_codex_home, discover_session_files, scan_codex
+from .scanner import CachedScanner, default_codex_home, discover_session_files, scan_codex
+from .live import build_live_snapshot
 from .desktop import run_app
 from .web import render_standalone, serve_dashboard
 
@@ -148,23 +149,32 @@ def command_report(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_serve(args: argparse.Namespace) -> int:
+def _live_builders(args: argparse.Namespace):
+    _validate_dates(args)
     pricebook = PriceBook.default()
+    scanner = CachedScanner(args.codex_home, include_archived=not args.active_only,
+                            billing_mode=args.billing_mode)
 
     def builder() -> dict[str, Any]:
-        return _build(args, pricebook)
+        return build_report(scanner.scan(), pricebook, since=args.since,
+                            until=args.until, plan_override=args.plan)
 
-    serve_dashboard(builder, port=args.port, open_browser=args.open)
+    def live_builder() -> dict[str, Any]:
+        # A live monitor always covers the present, even for a filtered report.
+        return build_live_snapshot(scanner.scan(), pricebook)
+
+    return builder, live_builder
+
+
+def command_serve(args: argparse.Namespace) -> int:
+    builder, live_builder = _live_builders(args)
+    serve_dashboard(builder, port=args.port, open_browser=args.open, live_builder=live_builder)
     return 0
 
 
 def command_app(args: argparse.Namespace) -> int:
-    pricebook = PriceBook.default()
-
-    def builder() -> dict[str, Any]:
-        return _build(args, pricebook)
-
-    run_app(builder, port=args.port)
+    builder, live_builder = _live_builders(args)
+    run_app(builder, port=args.port, live_builder=live_builder, widget=args.widget)
     return 0
 
 
@@ -201,9 +211,10 @@ def command_prices(args: argparse.Namespace) -> int:
         rates = row["credits"]
         ultra = row.get("ultrafast")
         extra = f" / ultrafast ×{ultra['multiplier']:g}" if ultra else ""
+        fast = f"fast ×{row['fast_multiplier']:g}" if row.get("fast_multiplier") else "Standard only (verified)"
         print(
             f"  {row['model']:<19} in {rates['input']:g} / cache {rates['cached_input']:g} / out {rates['output']:g} "
-            f"· fast ×{row['fast_multiplier']:g}{extra}"
+            f"· {fast}{extra}"
         )
     return 0
 
@@ -242,6 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
     app_parser = subparsers.add_parser("app", help="启动 Codex Dollar 桌面 App")
     _add_scan_options(app_parser)
     app_parser.add_argument("--port", type=int, default=0, help="本地端口；0 表示自动选择")
+    app_parser.add_argument("--widget", action="store_true", help="直接启动桌面置顶悬窗")
     app_parser.set_defaults(func=command_app)
 
     doctor_parser = subparsers.add_parser("doctor", help="检查日志与价格表配置")

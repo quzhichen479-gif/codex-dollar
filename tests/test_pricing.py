@@ -301,6 +301,41 @@ class PriceBookTests(unittest.TestCase):
         self.assertEqual(self.book.plan_reference("pro", "pro_20x")["monthly_usd"], 200)
         self.assertEqual(self.book.plan_reference("pro", "pro_5x")["monthly_usd"], 100)
 
+    def test_sol_ultrafast_has_its_own_october_8_boundary(self) -> None:
+        tokens = {"input_tokens": 300_000, "cached_input_tokens": 100_000,
+                  "cache_write_input_tokens": 100_000, "output_tokens": 10_000}
+        for estimator, expected in ((self.book.estimate_api, 6.42),
+                                    (self.book.estimate_subscription_credits, 76.5)):
+            args = {"model":"gpt-6.1-sol", "tokens":tokens, "service_tier":"ultrafast"}
+            self.assertFalse(estimator(timestamp="2026-10-07T23:59:59Z", **args).priced)
+            result = estimator(timestamp="2026-10-07T20:00:00-04:00", **args)
+            self.assertTrue(result.priced)
+            self.assertAlmostEqual(result.value, expected)
+        short = self.book.estimate_api(model="gpt-6.1-sol", timestamp="2026-10-14",
+                    tokens={"input_tokens":100000, "output_tokens":10000}, service_tier="ultrafast")
+        self.assertAlmostEqual(short.value, 1.8)
+
+    def test_specialist_models_preserve_verified_coverage_and_tiers(self) -> None:
+        for model, api, credit in (("gpt-rosalind-research", 3.5, 87.5),
+                                    ("gpt-5.6-cyber", 10.0, 250.0)):
+            args = {"model":model, "timestamp":"2026-10-14", "tokens":{"input_tokens":200000,"output_tokens":100000}}
+            self.assertAlmostEqual(self.book.estimate_api(**args).value, api)
+            self.assertAlmostEqual(self.book.estimate_subscription_credits(**args).value, credit)
+            for tier in ("fast", "ultrafast", "batch", "flex"):
+                self.assertFalse(self.book.estimate_api(**args, service_tier=tier).priced)
+                self.assertFalse(self.book.estimate_subscription_credits(**args, service_tier=tier).priced)
+        args = {"model":"gpt-rosalind-research", "tokens":{"input_tokens":100000,"cache_write_input_tokens":100000}}
+        self.assertFalse(self.book.estimate_api(**args, timestamp="2026-10-04T23:59:59Z").priced)
+        self.assertAlmostEqual(self.book.estimate_api(**args, timestamp="2026-10-05").value, .5)
+        self.assertFalse(self.book.estimate_subscription_credits(**args, timestamp="2026-10-13").priced)
+
+    def test_retirement_retains_gpt55_historical_rates_and_api(self) -> None:
+        args = {"model":"gpt-5.5", "timestamp":"2026-10-14", "tokens":{"input_tokens":100000}}
+        self.assertTrue(self.book.estimate_api(**args).priced)
+        self.assertTrue(self.book.estimate_subscription_credits(**args).priced)
+        row = next(r for r in self.book.public_ledger()["subscription"] if r["model"] == "gpt-5.5")
+        self.assertEqual(row["retired_from_subscription_at"], "2026-10-14")
+
     def test_unknown_model_is_never_guessed(self) -> None:
         estimate = self.book.estimate_api(
             model="codex-auto-review",

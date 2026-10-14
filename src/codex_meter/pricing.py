@@ -180,6 +180,11 @@ class PriceBook:
             rates["output"] *= output_multiplier
 
         normalized_tier = str(service_tier or "default").strip().lower()
+        if "service_tiers" in period and normalized_tier not in period["service_tiers"]:
+            return self._unpriced(
+                model, canonical, "USD", normalized_tier,
+                "This processing tier has no verified official rate for this model.",
+            )
         tier_multipliers = rules["service_tier_multipliers"]
         special_tier = rules.get("model_service_tiers", {}).get(canonical, {}).get(normalized_tier)
         if special_tier and when >= parse_datetime(special_tier["effective_from"]):
@@ -371,14 +376,17 @@ class PriceBook:
                         "effective_to": period.get("effective_to"),
                         "rates": period.get("rates"),
                         "note": period.get("note"),
+                        "service_tiers": period.get("service_tiers"),
+                        "ultrafast": self.api.get("rules", {}).get("model_service_tiers", {}).get(model, {}).get("ultrafast"),
                     }
                 )
         credit_rows = [
             {
                 "model": model,
                 "effective_from": record.get("effective_from"),
+                "retired_from_subscription_at": record.get("retired_from_subscription_at"),
                 "credits": record.get("credits"),
-                "fast_multiplier": self.subscription.get("fast_multipliers", {}).get(model, 1.0),
+                "fast_multiplier": self.subscription.get("fast_multipliers", {}).get(model),
                 "ultrafast": self.subscription.get("model_service_tiers", {}).get(model, {}).get("ultrafast"),
             }
             for model, record in self.subscription.get("models", {}).items()

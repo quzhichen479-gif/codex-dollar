@@ -3,7 +3,7 @@
   "table_kind": "api",
   "currency": "USD",
   "unit_tokens": 1000000,
-  "retrieved_at": "2026-10-05",
+  "retrieved_at": "2026-10-14",
   "source_policy": {
     "allowed_hosts": [
       "developers.openai.com",
@@ -46,6 +46,10 @@
     {
       "label": "Official Astra Ultrafast API pricing",
       "url": "https://developers.openai.com/api/docs/guides/ultrafast-mode"
+    },
+    {
+      "label": "GPT-Rosalind-Research pricing",
+      "url": "https://developers.openai.com/api/docs/models/gpt-rosalind-research"
     }
   ],
   "rules": {
@@ -65,6 +69,12 @@
         "ultrafast": {
           "multiplier": 6.0,
           "effective_from": "2026-09-29T00:00:00Z"
+        }
+      },
+      "gpt-6.1-sol": {
+        "ultrafast": {
+          "multiplier": 6.0,
+          "effective_from": "2026-10-08T00:00:00Z"
         }
       }
     }
@@ -293,6 +303,42 @@
         },
         "long_context_pricing": false,
         "note": "Official deprecated codex-mini-latest model price."
+      }
+    ],
+    "gpt-rosalind-research": [
+      {
+        "effective_from": "2026-10-05T00:00:00Z",
+        "rates": {
+          "input": 5.0,
+          "cached_input": 0.5,
+          "cache_write": 5.0,
+          "output": 25.0
+        },
+        "long_context_pricing": false,
+        "service_tiers": [
+          "default",
+          "standard",
+          "auto"
+        ],
+        "note": "Official billing begins 2026-10-05; cache writes have no separate premium and remain regular input. Only Standard pricing is verified."
+      }
+    ],
+    "gpt-5.6-cyber": [
+      {
+        "effective_from": "2026-10-14T00:00:00Z",
+        "rates": {
+          "input": 12.5,
+          "cached_input": 1.25,
+          "cache_write": 15.625,
+          "output": 75.0
+        },
+        "long_context_pricing": false,
+        "service_tiers": [
+          "default",
+          "standard",
+          "auto"
+        ],
+        "note": "Current official rates first verified by this ledger on 2026-10-14. This is a coverage boundary, not a claimed launch or price-change date. Earlier use stays unpriced."
       }
     ]
   }

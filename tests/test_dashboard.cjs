@@ -51,7 +51,8 @@ test("offline dashboard renders current ledgers with no network or question bank
   assert.match(elements.get("#periodLabel").textContent, /无调用记录/);
   assert.match(elements.get("#apiLedger").innerHTML, /gpt-6\.1-sol/);
   assert.match(elements.get("#subscriptionLedger").innerHTML, /Ultrafast ×6/);
-  assert.match(elements.get("#retrievedAt").textContent, /2026-10-05/);
+  assert.match(elements.get("#retrievedAt").textContent, /2026-10-14/);
+  assert.equal(elements.get("#widgetButton").disabled, true);
   assert.equal(elements.get("#refreshButton").disabled, true);
   assert.equal(elements.has("#benchmarks"), false);
   assert.deepEqual(requests, []);

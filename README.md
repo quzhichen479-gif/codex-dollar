@@ -16,8 +16,9 @@
 - 持续监督 7 天额度窗口，把百分比变化与同期 token 关联，推算整周 API 美元等价、credits 和 token 等价。
 - 识别 Fast/Priority、Batch/Flex 和超过 272k 输入 token 的长上下文倍率。
 - 提供桌面 App、本地网页仪表盘、离线 HTML、JSON 和终端摘要。
+- 桌面置顶小悬窗：每 2 秒刷新近 60 秒 token/s、官方额度快照、回合平均速率与首 token 延迟。
 - 未知模型明确标为「未计价」，不会套用相似模型价格猜测。
-- 支持 GPT-6.1 Sol、GPT-6 Sol、GPT-6 Luna 与 Astra，包含缓存、长上下文、Fast 及 Astra Ultrafast 计价。
+- 支持 GPT-6.1 Sol、GPT-6 Sol、GPT-6 Luna 与 Astra，包含缓存、长上下文、Fast 及 Astra / Sol Ultrafast 计价；补充 Rosalind Research 和 Cyber 的已核实费率。
 
 所有扫描和计算都在本机完成。项目不读取 `auth.json`，不上传提示词，不连接第三方中转，也不使用 sub2api 一类非官方渠道。
 
@@ -75,6 +76,9 @@ codex-dollar app
 # 本地桌面/浏览器 App
 ./run.ps1 app
 
+# 直接打开置顶小悬窗
+./run.ps1 app --widget
+
 # 终端摘要
 ./run.ps1 scan
 
@@ -114,6 +118,17 @@ codex-dollar {app,scan,report,serve,doctor,prices} --help
 ./run.ps1 app --plan pro_20x
 ./run.ps1 app --plan pro_500
 ```
+
+## 小悬窗与 token/s
+
+在仪表盘右上角点击 **打开悬窗 ↗**，或运行 `codex-dollar app --widget`。Windows 发布包也支持 `Codex-Dollar.exe --widget`。悬窗默认置顶，可拖动标题栏移动、切换置顶、打开完整仪表盘；关闭任一窗口后另一个仍可使用。关闭所有窗口会停止本地服务。
+
+- **输出速率** = 近 60 秒落盘的输出 token ÷ 60；输入速率单独显示。合计本机全部会话，输出已包含 reasoning token。
+- **回合平均** = 最近完整回合输出 token ÷ 回合总耗时，包含等待和工具执行；首 token 延迟直接取日志计时字段，缺失时显示「未提供」。
+- **额度剩余**来自官方日志快照。空窗口显示「未提供」，超过 5 分钟标为旧快照，到重置时间后等待新快照，不擅自回填 100%。Pro 没有短周期窗口时也不会显示为额度用尽。
+- 每 2 秒请求一次本机接口；只重新解析变化的日志文件。浏览器版提供独立小窗口，跨应用置顶需要桌面依赖 `pywebview`。离线 HTML 不提供实时悬窗。
+
+**这些速率不是精确流式生成速度。** Codex 落盘日志没有逐 token 生成时间，更新时刻还包含缓冲延迟；直接读取 `duration_ms` 或扣除首 token 延迟也无法剔除工具/网络等待。详见 [测量口径与悬窗](docs/FLOATING_METER.md)。
 
 ## 周额度监督
 
@@ -169,7 +184,7 @@ Plus、Pro、Business 的包含用量会受模型、上下文、任务复杂度�
 - `input_tokens` 在日志中包含缓存输入和写缓存输入，程序会先拆桶再计价。
 - `output_tokens` 已包含 reasoning token，不会再重复收费。
 - 超过 272k 输入 token 的 GPT-6.1 Sol / GPT-6 系列 / GPT-5.6/5.5/5.4 调用按官方长上下文规则计算。
-- API Fast/Priority 为 Standard 的 2×；Batch/Flex 为 0.5×；Astra Ultrafast 自 2026-09-29 起为 6×。
+- 在已核实的模型上，API Fast/Priority 为 Standard 的 2×；Batch/Flex 为 0.5×。Astra Ultrafast 自 2026-09-29 起、Sol Ultrafast 自 2026-10-08 起为 6×。
 - 付费 credits：Fast 为 2×，Astra Ultrafast 为 6×。套餐内额度消耗分别为 2.5× / 8×，不能套入付费 credits。
 - v0.5.0 修正旧版把套餐内 Fast 倍率用于 credits 的口径错误，因此历史 Fast 的 credits 折算值也会修正；模型基础费率及 API 历史价格不变。官方未给出该口径说明的独立变价日，项目不编造变价日期。
 - 未知模型、服务等级或早于支持日期的组合明确保持未计价，不回退为标准价。
@@ -179,7 +194,7 @@ Plus、Pro、Business 的包含用量会受模型、上下文、任务复杂度�
 
 ## 隐私与安全
 
-扫描器以流式方式读取 JSONL，只有包含 `turn_context`、`thread_settings_applied` 或 `token_count` 的行才会进入 JSON 解析。生成的报告：
+扫描器以流式方式读取 JSONL，只解析模型设置、token/额度和回合开始/完成/中止事件。回合完成事件只保留数值计时字段，丢弃回复正文与原始 ID。生成的报告：
 
 - 不包含提示词、回复正文、会话标题或工作区路径；
 - 不包含真实会话 UUID，只包含单向哈希后的短标识；
@@ -194,7 +209,7 @@ Plus、Pro、Business 的包含用量会受模型、上下文、任务复杂度�
 ```bash
 python -m pip install -e .
 python -m unittest discover -s tests -v
-node --test tests/test_dashboard.cjs
+node --test tests/test_dashboard.cjs tests/test_widget.cjs
 python -m codex_meter prices --check
 python -m codex_meter doctor
 ```
@@ -217,7 +232,7 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed \
 - [Codex speed 与 credits 倍率](https://learn.chatgpt.com/docs/agent-configuration/speed)
 - [OpenAI Organization Usage API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage)
 
-最新补充核对：2026-10-05（GPT-6.1 Sol、GPT-6 Sol/Luna、Astra Ultrafast 和 credits 倍率；其他模型基础费率保留原来源和区间）。项目不会自动从网页抓价；价格变化必须通过人工核对官方页面、补充历史区间和测试后合并，避免今天的降价错误改写昨天的使用记录。
+最新补充核对：2026-10-14（Sol Ultrafast、Rosalind Research、Cyber、GPT-5.5 退出订阅的状态说明；GPT-6 系列基础费率复核不变，其他历史价格保留原来源和区间）。新增模型的覆盖起点见价格账本，不把首次核实日冒充发布日期。项目不会自动从网页抓价；价格变化必须通过人工核对官方页面、补充历史区间和测试后合并，避免今天的降价错误改写昨天的使用记录。
 
 ## 许可证
 
